@@ -2,7 +2,10 @@ feram-0.26.04/
 feram-0.26.04.tar.xz
 tags
 bin/
-lib
+lib/
 lib64
 pyvenv.cfg
 include/
+__pycache__/
+
+!main/lib/
