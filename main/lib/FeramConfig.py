@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field, asdict, make_dataclass
 from pathlib import Path
 
-FERAM_INPUT_FILE = Path.cwd() / Path('test.feram')
 
 @dataclass
 class SetupConfig:
@@ -17,6 +16,7 @@ class SetupConfig:
     n_average: int              = 20000
     n_coord_freq: int           = 60000
     distribution_directory: str = 'never'
+    slice_directory: str = 'never'
     init_dipo_avg: str          = '0.0   0.0   0.0' # [Angstrom] Average of initial dipole displacements
     init_dipo_dev: str          = '0.02  0.02  0.02' # [Angstrom] Deviation of initial dipole displacement
 
@@ -40,6 +40,9 @@ class MaterialConfig:  # parameters are from BTO
     P_kappa2: float    = 8.53400622096412
     j: str             = '-2.08403 -1.12904  0.68946 -0.61134  0.00000  0.27690  0.00000' #    [eV/Angstrom^2],
     epsilon_inf: float = 6.86915
+
+
+bto = MaterialConfig()
 
 @dataclass
 class BST(MaterialConfig):
@@ -113,19 +116,20 @@ def loop_dict(d: dict):
     # for k, v in d.items():
     #     yield generate_key_val(k, v)
 
-def write_to_file(config, filepath=FERAM_INPUT_FILE):
+def write_to_file(config, NAME):
+    filepath = Path.cwd() / Path(f"{NAME}.feram")
     with open(filepath, 'w') as feram_input_file:
         for i in loop_dict(config):
             feram_input_file.write(f"{i}\n")
 
 
-if __name__ == "__main__":
-
-    config = FeramConfig(
-        setup = SetupConfig(
-            verbose = 1
-        ),
-        material = bst
-    )
-    # print(asdict(config))
-    write_to_file(asdict(config), FERAM_INPUT_FILE)
+# if __name__ == "__main__":
+#
+#     config = FeramConfig(
+#         setup = SetupConfig(
+#             verbose = 1
+#         ),
+#         material = bst
+#     )
+#     # print(asdict(config))
+#     write_to_file(asdict(config), FERAM_INPUT_FILE)
