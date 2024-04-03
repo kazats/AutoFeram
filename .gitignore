@@ -7,5 +7,6 @@ lib64
 pyvenv.cfg
 include/
 __pycache__/
+no_need/
 
 !main/lib/
