@@ -8,10 +8,11 @@ pyvenv.cfg
 include/
 __pycache__/
 no_need/
+test/ 
+
+!main/lib/
 .feram
 .log
 .gp
 .avg
 .dipoRavg
-
-!main/lib/
