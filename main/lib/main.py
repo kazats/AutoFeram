@@ -1,22 +1,23 @@
-import FeramConfig
-import Control
-import subprocess as spb
-from dataclasses import dataclass, field, asdict, make_dataclass
 from pathlib import Path
 
-NAME = 'bto'
-BIN_FERAM = '~/Code/git/AutoFeram/feram-0.26.04/build_20240401/src/feram'
+import Config
+from materials.BTO import BTO
+import Control
+
 
 if __name__ == "__main__":
-    config = FeramConfig.FeramConfig(
-        setup = FeramConfig.SetupConfig(
-            verbose = 1,
-            L = '2 2 2',
-            n_thermalize = 1,
-            n_average = 4,
-            n_coord_freq = 1,
-        ),
-        material = FeramConfig.bto
+    SIM_NAME = 'bto'
+    FERAM_BIN = Path.home() / 'Code' / 'git' / 'AutoFeram' / 'feram-0.26.04' / 'build_20240401' / 'src' / 'feram'
+
+    config = Config.FeramConfig(
+        setup = Config.default_setup,
+            # TODO: merge using setattr()
+            # verbose = 1,
+            # L = '2 2 2',
+            # n_thermalize = 1,
+            # n_average = 4,
+            # n_coord_freq = 1,
+        material = BTO
     )
-    FeramConfig.write_to_file(asdict(config), NAME)
-    Control.ThermoControl(config, NAME, BIN_FERAM, Ti=10, Tf=20, dT=5)
+    config.write_feram_file(SIM_NAME)
+    # Control.control_temperature(config, SIM_NAME, FERAM_BIN, Ti=10, Tf=20, dT=5)
