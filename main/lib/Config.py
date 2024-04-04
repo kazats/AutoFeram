@@ -1,5 +1,6 @@
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 from pathlib import Path
+from typing import Tuple
 
 
 @dataclass
@@ -20,7 +21,7 @@ class Setup:
     distribution_directory: str = 'never'
     slice_directory: str        = 'never'
     # initial dipole
-    init_dipo_avg: str          = '0.0   0.0   0.0' # [Angstrom] Average of initial dipole displacements
+    init_dipo_avg: str          = '0.0   0.0   0.0'  # [Angstrom] Average of initial dipole displacements
     init_dipo_dev: str          = '0.02  0.02  0.02' # [Angstrom] Deviation of initial dipole displacement
 
 
