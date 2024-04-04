@@ -26,7 +26,12 @@ class Setup:
 
 
 @dataclass
-class SetupWithElectricField(Setup):
+class SetupStaticElecField(Setup):
+    external_E_field: str       = '0.00 0.00 0.00'
+
+
+@dataclass
+class SetupDynamicElecField(Setup):
     n_E_wave_period: int        = 0
     n_hl_freq: int              = 10000
     E_wave_type: str            = 'ramping_off'
