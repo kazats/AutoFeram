@@ -30,27 +30,49 @@ class Setup:
     external_E_field: str
 
 
-default_setup = Setup(
-    method = 'md',
-    bulk_or_film = 'bulk',
-    L = '36 36 36',
-    dt = 0.002,
-    GPa = 0,
-    kelvin = 300,
-    Q_Nose = 15,
-    verbose = 4,
-    n_thermalize = 40000,
-    n_average = 20000,
-    n_coord_freq = 60000,
-    distribution_directory = 'never',
-    slice_directory = 'never',
-    init_dipo_avg = '0.0   0.0   0.0',
-    init_dipo_dev = '0.02  0.02  0.02',
-    n_E_wave_period = 0,
-    n_hl_freq = 10000,
-    E_wave_type = 'ramping_off',
-    external_E_field = '0.00 0.00 0.00',
-)
+# default_setup = Setup(
+#     method = 'md',
+#     bulk_or_film = 'bulk',
+#     L = '36 36 36',
+#     dt = 0.002,
+#     GPa = 0,
+#     kelvin = 300,
+#     Q_Nose = 15,
+#     verbose = 4,
+#     n_thermalize = 40000,
+#     n_average = 20000,
+#     n_coord_freq = 60000,
+#     distribution_directory = 'never',
+#     slice_directory = 'never',
+#     init_dipo_avg = '0.0   0.0   0.0',
+#     init_dipo_dev = '0.02  0.02  0.02',
+#     n_E_wave_period = 0,
+#     n_hl_freq = 10000,
+#     E_wave_type = 'ramping_off',
+#     external_E_field = '0.00 0.00 0.00',
+# )
+
+@dataclass
+class DefaultSetup(Setup):
+    method = 'md'
+    bulk_or_film = 'bulk'
+    L = '36 36 36'
+    dt = 0.002
+    GPa = 0
+    kelvin = 300
+    Q_Nose = 15
+    verbose = 4
+    n_thermalize = 40000
+    n_average = 20000
+    n_coord_freq = 60000
+    distribution_directory = 'never'
+    slice_directory = 'never'
+    init_dipo_avg = '0.0   0.0   0.0'
+    init_dipo_dev = '0.02  0.02  0.02'
+    n_E_wave_period = 0
+    n_hl_freq = 10000
+    E_wave_type = 'ramping_off'
+    external_E_field = '0.00 0.00 0.00'
 
 
 @dataclass
