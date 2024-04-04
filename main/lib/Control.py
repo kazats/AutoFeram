@@ -18,13 +18,13 @@ def control_temperature(
     os.makedirs(Path.cwd() / 'coords', exist_ok=True)
 
     for temperature in range(Ti, Tf, dT):
-        avg_file        = Path.cwd() / f'{sim_name}.avg'
-        thermo_file     = Path.cwd() / 'thermo.avg'
-        dipoRavg_file   = Path.cwd() / f'{sim_name}.dipoRavg'
+        avg_file           = Path.cwd() / f'{sim_name}.avg'
+        thermo_file        = Path.cwd() / 'thermo.avg'
+        dipoRavg_file      = Path.cwd() / f'{sim_name}.dipoRavg'
         temp_dipoRavg_file = Path.cwd() / 'dipoRavg' / f'{temperature}.dipoRavg'
-        last_coord_file = Path.cwd() / f'{sim_name}.{config.last_coord()}.coord'
-        restart_file    = Path.cwd() / f'{sim_name}.restart'
-        temp_coord_file = Path.cwd() / 'coords' / f'{temperature}.coord'
+        last_coord_file    = Path.cwd() / f'{sim_name}.{config.last_coord()}.coord'
+        restart_file       = Path.cwd() / f'{sim_name}.restart'
+        temp_coord_file    = Path.cwd() / 'coords' / f'{temperature}.coord'
 
 
         config.setup.kelvin = temperature
