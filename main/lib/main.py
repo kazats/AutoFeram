@@ -7,7 +7,8 @@ import Control
 
 if __name__ == "__main__":
     SIM_NAME = 'bto'
-    FERAM_BIN = Path.home() / 'Code' / 'git' / 'AutoFeram' / 'feram-0.26.04' / 'build_20240401' / 'src' / 'feram'
+    # FERAM_BIN = Path.home() / 'Code' / 'git' / 'AutoFeram' / 'feram-0.26.04' / 'build_20240401' / 'src' / 'feram'
+    FERAM_BIN = Path('feram')
 
     config = Config.FeramConfig(
         setup = Config.Setup(
@@ -20,4 +21,4 @@ if __name__ == "__main__":
         material = BTO
     )
     config.write_feram_file(SIM_NAME)
-    # Control.control_temperature(config, SIM_NAME, FERAM_BIN, Ti=10, Tf=20, dT=5)
+    Control.control_temperature(config, SIM_NAME, FERAM_BIN, Ti=10, Tf=20, dT=5)
