@@ -22,7 +22,10 @@ class Setup:
     # initial dipole
     init_dipo_avg: str          = '0.0   0.0   0.0' # [Angstrom] Average of initial dipole displacements
     init_dipo_dev: str          = '0.02  0.02  0.02' # [Angstrom] Deviation of initial dipole displacement
-    # electric field
+
+
+@dataclass
+class SetupWithElectricField(Setup):
     n_E_wave_period: int        = 0
     n_hl_freq: int              = 10000
     E_wave_type: str            = 'ramping_off'
