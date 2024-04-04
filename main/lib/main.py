@@ -10,13 +10,13 @@ if __name__ == "__main__":
     FERAM_BIN = Path.home() / 'Code' / 'git' / 'AutoFeram' / 'feram-0.26.04' / 'build_20240401' / 'src' / 'feram'
 
     config = Config.FeramConfig(
-        setup = Config.default_setup,
-            # TODO: merge using setattr()
-            # verbose = 1,
-            # L = '2 2 2',
-            # n_thermalize = 1,
-            # n_average = 4,
-            # n_coord_freq = 1,
+        setup = Config.Setup(
+            verbose      = 1,
+            L            = '2 2 2',
+            n_thermalize = 1,
+            n_average    = 4,
+            n_coord_freq = 1,
+        ),
         material = BTO
     )
     config.write_feram_file(SIM_NAME)

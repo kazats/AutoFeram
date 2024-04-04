@@ -4,75 +4,29 @@ from pathlib import Path
 
 @dataclass
 class Setup:
-    method: str
-    bulk_or_film: str
-    L: str
-    dt: float
+    method: str                 = 'md'
+    bulk_or_film: str           = 'bulk'
+    L: str                      = '36 36 36'
+    dt: float                   = 0.002
     # temperature and pressure control
-    GPa: float
-    kelvin: int
-    Q_Nose: float
+    GPa: float                  = 0
+    kelvin: int                 = 300
+    Q_Nose: float               = 15
     # output
-    verbose: int
-    n_thermalize: int
-    n_average: int
-    n_coord_freq: int
-    distribution_directory: str
-    slice_directory: str
-    # coord_directory: str
+    verbose: int                = 4
+    n_thermalize: int           = 40000
+    n_average: int              = 20000
+    n_coord_freq: int           = 60000
+    distribution_directory: str = 'never'
+    slice_directory: str        = 'never'
     # initial dipole
-    init_dipo_avg: str # [Angstrom] Average of initial dipole displacements
-    init_dipo_dev: str # [Angstrom] Deviation of initial dipole displacement
+    init_dipo_avg: str          = '0.0   0.0   0.0' # [Angstrom] Average of initial dipole displacements
+    init_dipo_dev: str          = '0.02  0.02  0.02' # [Angstrom] Deviation of initial dipole displacement
     # electric field
-    n_E_wave_period: int
-    n_hl_freq: int
-    E_wave_type: str
-    external_E_field: str
-
-
-# default_setup = Setup(
-#     method = 'md',
-#     bulk_or_film = 'bulk',
-#     L = '36 36 36',
-#     dt = 0.002,
-#     GPa = 0,
-#     kelvin = 300,
-#     Q_Nose = 15,
-#     verbose = 4,
-#     n_thermalize = 40000,
-#     n_average = 20000,
-#     n_coord_freq = 60000,
-#     distribution_directory = 'never',
-#     slice_directory = 'never',
-#     init_dipo_avg = '0.0   0.0   0.0',
-#     init_dipo_dev = '0.02  0.02  0.02',
-#     n_E_wave_period = 0,
-#     n_hl_freq = 10000,
-#     E_wave_type = 'ramping_off',
-#     external_E_field = '0.00 0.00 0.00',
-# )
-
-@dataclass
-class DefaultSetup(Setup):
-    method = 'md'
-    bulk_or_film = 'bulk'
-    L = '36 36 36'
-    dt = 0.002
-    GPa = 0
-    kelvin = 300
-    Q_Nose = 15
-    verbose = 4
-    n_thermalize = 40000
-    n_average = 20000
-    n_coord_freq = 60000
-    distribution_directory = 'never'
-    slice_directory = 'never'
-    init_dipo_avg = '0.0   0.0   0.0'
-    init_dipo_dev = '0.02  0.02  0.02'
-    n_E_wave_period = 0
-    n_hl_freq = 10000
-    E_wave_type = 'ramping_off'
-    external_E_field = '0.00 0.00 0.00'
+    n_E_wave_period: int        = 0
+    n_hl_freq: int              = 10000
+    E_wave_type: str            = 'ramping_off'
+    external_E_field: str       = '0.00 0.00 0.00'
 
 
 @dataclass
