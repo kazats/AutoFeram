@@ -96,3 +96,9 @@ class FeramConfig:
     def last_coord(self) -> str:
         total_steps = self.setup.n_thermalize + self.setup.n_average
         return str(total_steps).zfill(10)
+    
+    def get_material(self) -> dict:
+        return {'a0': self.a0,
+                'Z_star': self.Z_star,
+                'factor': 1.6 * 10**3 * self.Z_star / self.a0**3}
+    # factor: from displacement to polarization; physical meaning: effective charge 
