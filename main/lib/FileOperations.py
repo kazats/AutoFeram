@@ -1,8 +1,9 @@
 import subprocess as sub
 import os
+import shutil
 from pathlib import Path
 from collections.abc import Callable
-from typing import Any, Self, TypeAlias
+from typing import Any, Self, TypeAlias, cast
 from enum import Enum
 from result import Result, Ok, Err, as_result, do
 
@@ -63,6 +64,8 @@ class FileIn(FilePath):
     def __init__(self, path: Path, preconditions: list[Precondition] = []) -> None:
         super().__init__(path, FilePathType.FileIn, [file_exists, *preconditions])
 
+Exec: TypeAlias = FileIn
+
 class FileOut(FilePath):
     def __init__(self, path: Path, preconditions: list[Precondition] = []) -> None:
         super().__init__(path, FilePathType.FileOut, [*preconditions])
@@ -93,7 +96,10 @@ class Cat(FileOperation):
         return do(
             Ok(res)
             for checked in file.check_preconditions()
-            for res in from_completed_process(sub.run(['cat', checked.path], capture_output=True, universal_newlines=True))
+            for res in from_completed_process(
+                sub.run(['cat', checked.path],
+                        capture_output=True,
+                        universal_newlines=True))
         ).map(lambda x: f'Cat: {x}')
         # return do(
         #     Ok(res)
@@ -128,11 +134,32 @@ class Append(FileOperation):
             for checked_in in path_in.check_preconditions()
             for checked_out in path_out.check_preconditions()
             for res in self.safe_append(checked_in, checked_out)
-        ).map(lambda x: f"Append: '{relative_to_cwd(path_in.path)}' >> '{relative_to_cwd(path_out.path)}'")
+        ).map(lambda _: f"Append: '{relative_to_cwd(path_in.path)}' >> '{relative_to_cwd(path_out.path)}'")
+
+
+class Feram(FileOperation):
+    def __init__(self, feram_bin: Exec, feram_input: FileIn) -> None:
+        super().__init__(lambda: self.do(feram_bin, feram_input))
+
+    def do(self, feram_bin: Exec, feram_input: FileIn):
+        return do(
+            Ok(res)
+            for checked_feram_bin in feram_bin.check_preconditions()
+            for checked_feram_input in feram_input.check_preconditions()
+            for res in from_completed_process(
+                sub.run([checked_feram_bin.path, checked_feram_input.path],
+                        capture_output=True,
+                        universal_newlines=True))
+        ).map(lambda x: f'Feram: {x}')
 
 
 if __name__ == "__main__":
-    Cat(FileIn(Path.cwd() / 'test')).run()
-    MkDirs(DirOut(Path.cwd() / 'dir' / 'dir2')).run()
-    Append(FileIn(Path.cwd() / 'test'),
-           FileOut(Path.cwd() / 'append')).run()
+    # FERAM_BIN = Path.home() / 'Code' / 'git' / 'AutoFeram' / 'feram-0.26.04' / 'build_20240401' / 'src' / 'feram'
+    FERAM_BIN = Path(cast(str, shutil.which('feram')))
+
+    Feram(Exec(FERAM_BIN), FileIn(Path('test.feram')))
+
+    # Cat(FileIn(Path.cwd() / 'test')).run()
+    # MkDirs(DirOut(Path.cwd() / 'dir' / 'dir2')).run()
+    # Append(FileIn(Path.cwd() / 'test'),
+    #        FileOut(Path.cwd() / 'append')).run()
