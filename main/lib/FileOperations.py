@@ -1,6 +1,7 @@
 import subprocess as sub
 import os
 import shutil
+from functools import reduce
 from pathlib import Path
 from collections.abc import Callable
 from typing import Any, Self, TypeAlias, cast
@@ -28,7 +29,7 @@ def file_exists(path: Path) -> PreconditionReturn:
     if os.path.isfile(path):
         return Ok(path)
     else:
-        return Err(f"File '{relative_to_cwd(path)}' doesn't exist")
+        return Err(f"No such file or directory: {relative_to_cwd(path)}")
 
 def dir_exists(path: Path) -> PreconditionReturn:
     if os.path.isdir(path):
@@ -79,16 +80,17 @@ class DirOut(FilePath):
         super().__init__(path, FilePathType.DirOut, [*preconditions])
 
 
-class FileOperation:
+class Operation:
     def __init__(self, operation: Callable[[], Result[Any, str]]) -> None:
         self.operation = operation
 
-    def run(self):
-        result = self.operation()
-        print(result)
+    def run(self) -> Result[Any, str]:
+        res = self.operation()
+        print(res)
+        return res
 
 
-class Cat(FileOperation):
+class Cat(Operation):
     def __init__(self, path: FileIn) -> None:
         super().__init__(lambda: self.do(path))
 
@@ -100,7 +102,7 @@ class Cat(FileOperation):
                 sub.run(['cat', checked.path],
                         capture_output=True,
                         universal_newlines=True))
-        ).map(lambda x: f'Cat: {x}')
+        ).map(lambda x: f'Cat: {x}').map_err(lambda x: f'Cat: {x}')
         # return do(
         #     Ok(res)
         #     for checked in file.check_preconditions()
@@ -109,7 +111,7 @@ class Cat(FileOperation):
         # ).map(lambda x: f'Cat: {x}')
 
 
-class MkDirs(FileOperation):
+class MkDirs(Operation):
     def __init__(self, path: DirOut) -> None:
         super().__init__(lambda: self.do(path))
 
@@ -118,7 +120,7 @@ class MkDirs(FileOperation):
         return Ok(f"MkDir: '{relative_to_cwd(path.path)}'")
 
 
-class Append(FileOperation):
+class Append(Operation):
     def __init__(self, path_in: FileIn, path_out: FileOut) -> None:
         super().__init__(lambda: self.do(path_in, path_out))
 
@@ -134,10 +136,10 @@ class Append(FileOperation):
             for checked_in in path_in.check_preconditions()
             for checked_out in path_out.check_preconditions()
             for res in self.safe_append(checked_in, checked_out)
-        ).map(lambda _: f"Append: '{relative_to_cwd(path_in.path)}' >> '{relative_to_cwd(path_out.path)}'")
+        ).map(lambda _: f"Append: '{relative_to_cwd(path_in.path)}' >> '{relative_to_cwd(path_out.path)}'").map_err(lambda x: f'Append: {x}')
 
 
-class Feram(FileOperation):
+class Feram(Operation):
     def __init__(self, feram_bin: Exec, feram_input: FileIn) -> None:
         super().__init__(lambda: self.do(feram_bin, feram_input))
 
@@ -150,16 +152,32 @@ class Feram(FileOperation):
                 sub.run([checked_feram_bin.path, checked_feram_input.path],
                         capture_output=True,
                         universal_newlines=True))
-        ).map(lambda x: f'Feram: {x}')
+        ).map(lambda x: f'Feram: {x}').map_err(lambda x: f'Feram: {x}')
+
+
+class OperationSequence:
+    def __init__(self, operations: list[Operation]) -> None:
+        self.operations = operations
+
+    def run(self) -> Result[Any, str]:
+        return reduce(lambda op, next_op: op.and_then(lambda _: next_op.run()),
+                      self.operations[1:],
+                      self.operations[0].run())
 
 
 if __name__ == "__main__":
     # FERAM_BIN = Path.home() / 'Code' / 'git' / 'AutoFeram' / 'feram-0.26.04' / 'build_20240401' / 'src' / 'feram'
-    FERAM_BIN = Path(cast(str, shutil.which('feram')))
+    # FERAM_BIN = Path(cast(str, shutil.which('feram')))
 
-    Feram(Exec(FERAM_BIN), FileIn(Path('test.feram')))
-
-    # Cat(FileIn(Path.cwd() / 'test')).run()
+    # Feram(Exec(FERAM_BIN), FileIn(Path('test.feram')))
     # MkDirs(DirOut(Path.cwd() / 'dir' / 'dir2')).run()
-    # Append(FileIn(Path.cwd() / 'test'),
-    #        FileOut(Path.cwd() / 'append')).run()
+
+    operations: list[Operation] = [
+        Cat(FileIn(Path.cwd() / 'test')),
+        Append(FileIn(Path.cwd() / 'test'),
+               FileOut(Path.cwd() / 'append')),
+        Cat(FileIn(Path.cwd() / 'tesr')),
+        Cat(FileIn(Path.cwd() / 'append')),
+    ]
+
+    OperationSequence(operations).run()
