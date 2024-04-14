@@ -21,5 +21,6 @@ if __name__ == "__main__":
         ),
         material = BTO
     )
-    config.write_feram_file(SIM_NAME)
-    Control.control_temperature(config, SIM_NAME, FERAM_BIN, Ti=10, Tf=20, dT=5)
+    # config.write_feram_file(SIM_NAME)
+    # Control.control_temperature(config, SIM_NAME, FERAM_BIN, Ti=10, Tf=20, dT=5)
+    Control.measure_electrocaloriceffect(config, SIM_NAME, FERAM_BIN)
