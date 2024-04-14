@@ -11,6 +11,7 @@ no_need/
 test/ 
 test.py 
 send/
+howto_pythonvenv.txt
 
 !main/lib/
 .feram
