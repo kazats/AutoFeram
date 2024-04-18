@@ -26,6 +26,11 @@ class Setup:
 
 
 @dataclass
+class SetupStrain(Setup):
+    epi_strain: str = '0.00 0.00 0.00'
+
+
+@dataclass
 class SetupStaticElecField(Setup):
     external_E_field: str       = '0.00 0.00 0.00'
 

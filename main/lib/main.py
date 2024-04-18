@@ -31,18 +31,22 @@ if __name__ == "__main__":
               'final_Efield':                  '0 0 0',
               'kelvin':                        temperature,
               'L':                             '1 1 1',
+
               'n_thermalize_step1_preNPT':     0,
               'n_average_step1_preNPT':        8, #0000,
               'n_coord_freq_step1_preNPT':     8, #0000,
+
               'n_thermalize_step2_preNPE':     0,
               'n_average_step2_preNPE':        12, #0000,
               'n_coord_freq_step2_preNPE':     12, #0000,
+
               'n_thermalize_step3_rampNPE':    10, #0000,
               'n_average_step3_rampNPE':       0,
               'n_coord_freq_step3_rampNPE':    10, #0000,
               'n_hl_freq_step3_rampNPE':       1, #00,
               'n_E_wave_period_step3_rampNPE': 4, #100000,
               'E_wave_type_step3_rampNPE':     'ramping_off',
+
               'n_thermalize_step4_postNPE':    0,
               'n_average_step4_postNPE':       18, #0000,
               'n_coord_freq_step4_postNPE':    18, #0000,

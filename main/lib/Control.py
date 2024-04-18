@@ -52,6 +52,7 @@ def measure_electrocaloriceffect(
     feram_bin: Path,
     params:    dict
     ):
+    """Electrocaloric Effect"""
 
     cwd = Path.cwd()
     step1_preNPT  = cwd / '1_preNPT'
