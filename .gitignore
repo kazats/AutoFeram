@@ -9,6 +9,9 @@ include/
 __pycache__/
 no_need/
 test/ 
+test.py 
+send/
+howto_pythonvenv.txt
 
 !main/lib/
 .feram
@@ -16,3 +19,4 @@ test/
 .gp
 .avg
 .dipoRavg
+test_ece/

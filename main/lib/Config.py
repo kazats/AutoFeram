@@ -26,6 +26,11 @@ class Setup:
 
 
 @dataclass
+class SetupStrain(Setup):
+    epi_strain: str = '0.00 0.00 0.00'
+
+
+@dataclass
 class SetupStaticElecField(Setup):
     external_E_field: str       = '0.00 0.00 0.00'
 
@@ -71,7 +76,7 @@ class FeramConfig:
     setup: Setup
     material: Material
 
-    def write_feram_file(self, sim_name):
+    def write_feram_file(self, feram_file):
         def generate_key_val(k: str, v: str):
             return f"{k} = {v}"
 
@@ -87,7 +92,7 @@ class FeramConfig:
             # for k, v in d.items():
             #     yield generate_key_val(k, v)
 
-        filepath = Path.cwd() / f'{sim_name}.feram'
+        filepath = Path.cwd() / feram_file
 
         with open(filepath, 'w') as feram_input_file:
             for i in generate_feram_file(asdict(self)):
@@ -96,3 +101,9 @@ class FeramConfig:
     def last_coord(self) -> str:
         total_steps = self.setup.n_thermalize + self.setup.n_average
         return str(total_steps).zfill(10)
+
+    def polarization_parameters(self) -> dict:
+        return {'a0': self.material.a0,
+                'Z_star': self.material.Z_star,
+                'factor': 1.6 * 10**3 * self.material.Z_star / self.material.a0**3}
+    # factor: from displacement to polarization; physical meaning: effective charge 
