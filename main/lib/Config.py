@@ -1,17 +1,24 @@
 from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Any, TypeAlias
+from functools import reduce
 
 
 @dataclass
 class Setup:
+    def to_dict(self):
+        return asdict(self)
+
+
+@dataclass
+class General(Setup):
     method: str                 = 'md'
     bulk_or_film: str           = 'bulk'
     L: str                      = '36 36 36'
     dt: float                   = 0.002
     # temperature and pressure control
     GPa: float                  = 0
-    kelvin: int                 = 300
+    kelvin: float               = 300
     Q_Nose: float               = 15
     # output
     verbose: int                = 4
@@ -26,21 +33,26 @@ class Setup:
 
 
 @dataclass
-class SetupStrain(Setup):
+class Strain(Setup):
     epi_strain: str = '0.00 0.00 0.00'
 
 
 @dataclass
-class SetupStaticElecField(Setup):
+class EFieldStatic(Setup):
     external_E_field: str       = '0.00 0.00 0.00'
 
 
 @dataclass
-class SetupDynamicElecField(Setup):
+class EFieldDynamic(Setup):
     n_E_wave_period: int        = 0
     n_hl_freq: int              = 10000
     E_wave_type: str            = 'ramping_off'
     external_E_field: str       = '0.00 0.00 0.00'
+
+
+def merge_setups(setups: list[Setup]) -> dict[str, Any]:
+    dict_setups = map(lambda s: s.to_dict(), setups)
+    return reduce(lambda acc, d: acc | d, dict_setups)
 
 
 @dataclass
@@ -71,9 +83,10 @@ class SolidSolution(Material):
     acoustic_mass_amu: float
 
 
+SetupDict: TypeAlias = dict[str, Any]
 @dataclass
 class FeramConfig:
-    setup: Setup
+    setup: SetupDict
     material: Material
 
     def write_feram_file(self, feram_file):
@@ -99,7 +112,7 @@ class FeramConfig:
                 feram_input_file.write(f"{i}\n")
 
     def last_coord(self) -> str:
-        total_steps = self.setup.n_thermalize + self.setup.n_average
+        total_steps = self.setup['n_thermalize'] + self.setup['n_average']
         return str(total_steps).zfill(10)
 
     def polarization_parameters(self) -> dict:

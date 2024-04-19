@@ -19,6 +19,7 @@ def control_temperature(
     os.makedirs(Path.cwd() / 'coords', exist_ok=True)
 
     for temperature in range(Ti, Tf, dT):
+        feram_file         = Path.cwd() / f'{sim_name}.feram'
         avg_file           = Path.cwd() / f'{sim_name}.avg'
         thermo_file        = Path.cwd() / 'thermo.avg'
         dipoRavg_file      = Path.cwd() / f'{sim_name}.dipoRavg'
@@ -28,11 +29,11 @@ def control_temperature(
         temp_coord_file    = Path.cwd() / 'coords' / f'{temperature}.coord'
 
 
-        config.setup.kelvin = temperature
-        config.write_feram_file(sim_name)
+        config.setup['kelvin'] = temperature
+        config.write_feram_file(feram_file)
 
 
-        sp.run([feram_bin, f'{sim_name}.feram'], check=True)
+        sp.run([feram_bin, feram_file], check=True)
 
         # good?
         with open(avg_file, 'r') as inf,\
@@ -47,7 +48,7 @@ def control_temperature(
     # spb.call(f"rm {NAME}.restart", shell=True)
 
 
-def measure_electrocaloriceffect(
+def measure_ece(
     sim_name:  str,
     feram_bin: Path,
     params:    dict
@@ -65,7 +66,7 @@ def measure_electrocaloriceffect(
 
     os.chdir(step1_preNPT)
     config = Config.FeramConfig(
-        setup = Config.SetupStaticElecField(
+        setup = Config.EFieldStatic(
             n_thermalize = params['n_thermalize_step1_preNPT'],
             n_average    = params['n_average_step1_preNPT'],
             n_coord_freq = params['n_coord_freq_step1_preNPT'],
@@ -83,7 +84,7 @@ def measure_electrocaloriceffect(
 
     os.chdir(step2_preNPE)
     config = Config.FeramConfig(
-        setup = Config.SetupStaticElecField(
+        setup = Config.EFieldStatic(
             method       = 'lf',
             n_thermalize = params['n_thermalize_step2_preNPE'],
             n_average    = params['n_average_step2_preNPE'],
@@ -100,7 +101,7 @@ def measure_electrocaloriceffect(
 
     os.chdir(step3_rampNPE)
     config = Config.FeramConfig(
-        setup = Config.SetupDynamicElecField(
+        setup = Config.EFieldDynamic(
             method          = 'lf',
             n_thermalize    = params['n_thermalize_step3_rampNPE'],
             n_average       = params['n_average_step3_rampNPE'],
@@ -120,7 +121,7 @@ def measure_electrocaloriceffect(
 
     os.chdir(step4_postNPE)
     config = Config.FeramConfig(
-        setup = Config.SetupStaticElecField(
+        setup = Config.EFieldStatic(
             method           = 'lf',
             n_thermalize     = params['n_thermalize_step4_postNPE'],
             n_average        = params['n_average_step4_postNPE'],
