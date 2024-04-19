@@ -2,9 +2,8 @@ import shutil
 from pathlib import Path
 from typing import cast
 
-import Config
-import Control
-from materials.BTO import BTO
+from lib import Config, Control
+from lib.materials.BTO import BTO
 
 
 if __name__ == "__main__":

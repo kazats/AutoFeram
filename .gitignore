@@ -13,7 +13,7 @@ test.py
 send/
 howto_pythonvenv.txt
 
-!main/lib/
+!src/lib/
 .feram
 .log
 .gp
