@@ -3,8 +3,7 @@ import subprocess as sp
 import shutil
 from pathlib import Path
 
-from Config import FeramConfig
-import Config
+from src.lib.Config import FeramConfig
 
 
 def control_temperature(

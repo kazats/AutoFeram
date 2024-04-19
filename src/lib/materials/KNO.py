@@ -1,4 +1,4 @@
-from Config import Material
+from src.lib.Config import Material
 
 
 KNO = Material(

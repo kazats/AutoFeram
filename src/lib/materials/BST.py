@@ -1,4 +1,4 @@
-from Config import SolidSolution
+from src.lib.Config import SolidSolution
 
 
 BST = SolidSolution(

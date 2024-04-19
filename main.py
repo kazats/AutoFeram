@@ -1,12 +1,16 @@
+import os
 import shutil
 from pathlib import Path
 from typing import cast
 
-from lib import Config, Control
-from lib.materials.BTO import BTO
+from src.lib import Config, Control
+from src.lib.materials.BTO import BTO
 
 
 if __name__ == "__main__":
+    cwd = Path.cwd()
+    os.chdir(Path.cwd() / 'src' / 'test' / 'refactor')
+
     SIM_NAME = 'bto'
     # FERAM_BIN = Path.home() / 'Code' / 'git' / 'AutoFeram' / 'feram-0.26.04' / 'build_20240401' / 'src' / 'feram'   # FERAM_BIN = Path('feram')
     FERAM_BIN = Path(cast(str, shutil.which('feram')))
@@ -64,3 +68,5 @@ if __name__ == "__main__":
     #
     #
     # Control.measure_ece(SIM_NAME, FERAM_BIN, params)
+
+    os.chdir(cwd)
