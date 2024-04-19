@@ -19,7 +19,8 @@ def from_completed_process(completed_process: sub.CompletedProcess) -> Result[st
 
 
 def relative_to_cwd(path: Path) -> Path:
-    return path.relative_to(Path.cwd())
+    return path
+    # return path.relative_to(Path.cwd())
 
 
 PreconditionReturn: TypeAlias = Result[Path, str]
@@ -29,13 +30,13 @@ def file_exists(path: Path) -> PreconditionReturn:
     if os.path.isfile(path):
         return Ok(path)
     else:
-        return Err(f"No such file or directory: {relative_to_cwd(path)}")
+        return Err(f"No such file: {relative_to_cwd(path)}")
 
 def dir_exists(path: Path) -> PreconditionReturn:
     if os.path.isdir(path):
         return Ok(path)
     else:
-        return Err(f"Directory '{relative_to_cwd(path)}' doesn't exist")
+        return Err(f"No such directory: {relative_to_cwd(path)}")
 
 
 FilePathType = Enum('FilePathType', ['FileIn', 'FileOut', 'DirIn', 'DirOut'])
@@ -88,6 +89,29 @@ class Operation:
         res = self.operation()
         print(res)
         return res
+
+
+class Cd(Operation):
+    def __init__(self, dir: DirIn) -> None:
+        super().__init__(lambda: self.do(dir))
+
+    def do(self, dir: DirIn) -> Result[Any, str]:
+        return as_result(OSError)(os.chdir)(dir.path).map(lambda _: f'Cd: {dir.path}').map_err(lambda x: f'Cd: {str(x)}')
+
+
+class WithDir(Operation):
+    def __init__(self, dir: DirIn, operation: Operation) -> None:
+        super().__init__(lambda: self.do(dir, operation))
+
+    def do(self, dir: DirIn, operation: Operation) -> Result[Any, str]:
+        cwd = DirIn(Path.cwd())
+
+        return do(
+            Ok(dir_from)
+            for to_dir in Cd(dir).run()
+            for res in operation.run()
+            for dir_from in Cd(cwd).run()
+        ).map(lambda _: f'WithDir: {dir.path}').map_err(lambda x: f'WithDir: {str(x)}')
 
 
 class Cat(Operation):
@@ -170,14 +194,17 @@ if __name__ == "__main__":
     # FERAM_BIN = Path(cast(str, shutil.which('feram')))
 
     # Feram(Exec(FERAM_BIN), FileIn(Path('test.feram')))
-    # MkDirs(DirOut(Path.cwd() / 'dir' / 'dir2')).run()
+
+    test_file = Path.cwd() / 'test'
+    test_dir = Path.cwd() / 'dir'
 
     operations: list[Operation] = [
-        Cat(FileIn(Path.cwd() / 'test')),
-        Append(FileIn(Path.cwd() / 'test'),
-               FileOut(Path.cwd() / 'append')),
-        Cat(FileIn(Path.cwd() / 'tesr')),
-        Cat(FileIn(Path.cwd() / 'append')),
+        MkDirs(DirOut(test_dir)),
+        WithDir(DirIn(test_dir),
+                Append(FileIn(test_file),
+                       FileOut(test_dir / 'dir_test'))),
+        Append(FileIn(test_file),
+               FileOut(Path.cwd() / 'append'))
     ]
 
     OperationSequence(operations).run()
