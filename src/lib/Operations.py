@@ -1,12 +1,15 @@
 import subprocess as sub
 import os
 import shutil
+import colors
 from functools import reduce
 from pathlib import Path
 from collections.abc import Callable
 from typing import Any, Self, TypeAlias, cast
 from enum import Enum
 from result import Result, Ok, Err, as_result, do
+
+from src.lib.Util import src_root
 
 
 safe_run = as_result(Exception)(sub.run)
@@ -87,8 +90,18 @@ class Operation:
 
     def run(self) -> Result[Any, str]:
         res = self.operation()
-        print(res)
+        color_res = colors.color(res, 'gray') if res.is_ok() else colors.red(res)
+        print(color_res)
         return res
+
+
+class MkDirs(Operation):
+    def __init__(self, path: DirOut) -> None:
+        super().__init__(lambda: self.do(path))
+
+    def do(self, path: DirOut) -> Result[Any, str]:
+        os.makedirs(path.path, mode=0o755, exist_ok=True)
+        return Ok(f"MkDir: '{relative_to_cwd(path.path)}'")
 
 
 class Cd(Operation):
@@ -96,22 +109,45 @@ class Cd(Operation):
         super().__init__(lambda: self.do(dir))
 
     def do(self, dir: DirIn) -> Result[Any, str]:
-        return as_result(OSError)(os.chdir)(dir.path).map(lambda _: f'Cd: {dir.path}').map_err(lambda x: f'Cd: {str(x)}')
+        return do(
+            as_result(OSError)(os.chdir)(checked.path)
+            for checked in dir.check_preconditions()
+        ).map(lambda _: f'Cd: {dir.path}').map_err(lambda x: f'Cd: {str(x)}')
 
 
 class WithDir(Operation):
-    def __init__(self, dir: DirIn, operation: Operation) -> None:
-        super().__init__(lambda: self.do(dir, operation))
+    def __init__(self, cwd: DirIn, dir: DirIn, operation: Operation) -> None:
+        super().__init__(lambda: self.do(cwd, dir, operation))
 
-    def do(self, dir: DirIn, operation: Operation) -> Result[Any, str]:
-        cwd = DirIn(Path.cwd())
-
+    def do(self, cwd: DirIn, dir: DirIn, operation: Operation) -> Result[Any, str]:
         return do(
             Ok(dir_from)
             for to_dir in Cd(dir).run()
             for res in operation.run()
             for dir_from in Cd(cwd).run()
         ).map(lambda _: f'WithDir: {dir.path}').map_err(lambda x: f'WithDir: {str(x)}')
+
+
+class Remove(Operation):
+    def __init__(self, file: FileIn) -> None:
+        super().__init__(lambda: self.do(file))
+
+    def do(self, file: FileIn) -> Result[Any, str]:
+        return do(
+            as_result(OSError)(os.remove)(checked.path)
+            for checked in file.check_preconditions()
+        ).map(lambda _: f'Remove: {file.path}').map_err(lambda x: f'Remove: {str(x)}')
+
+
+class Rename(Operation):
+    def __init__(self, src: FileIn | DirIn, dst: FileOut | DirOut) -> None:
+        super().__init__(lambda: self.do(src, dst))
+
+    def do(self, src: FileIn | DirIn, dst: FileOut | DirOut) -> Result[Any, str]:
+        return do(
+            as_result(OSError)(os.rename)(checked_src.path, dst.path)
+            for checked_src in src.check_preconditions()
+        ).map(lambda _: f'Rename: {src.path} >> {dst.path}').map_err(lambda x: f'Rename: {str(x)}')
 
 
 class Cat(Operation):
@@ -135,13 +171,15 @@ class Cat(Operation):
         # ).map(lambda x: f'Cat: {x}')
 
 
-class MkDirs(Operation):
-    def __init__(self, path: DirOut) -> None:
-        super().__init__(lambda: self.do(path))
+class Copy(Operation):
+    def __init__(self, src: FileIn, dst: FileOut) -> None:
+        super().__init__(lambda: self.do(src, dst))
 
-    def do(self, path: DirOut) -> Result[Any, str]:
-        os.makedirs(path.path, mode=0o755, exist_ok=True)
-        return Ok(f"MkDir: '{relative_to_cwd(path.path)}'")
+    def do(self, src: FileIn, dst: FileOut) -> Result[Any, str]:
+        return do(
+            as_result(OSError)(shutil.copy2)(checked_src.path, dst.path)
+            for checked_src in src.check_preconditions()
+        ).map(lambda _: f'Copy: {src.path} >> {dst.path}').map_err(lambda x: f'Copy: {str(x)}')
 
 
 class Append(Operation):
@@ -173,10 +211,11 @@ class Feram(Operation):
             for checked_feram_bin in feram_bin.check_preconditions()
             for checked_feram_input in feram_input.check_preconditions()
             for res in from_completed_process(
-                sub.run([checked_feram_bin.path, checked_feram_input.path],
-                        capture_output=True,
-                        universal_newlines=True))
-        ).map(lambda x: f'Feram: {x}').map_err(lambda x: f'Feram: {x}')
+                sub.run([checked_feram_bin.path, checked_feram_input.path]))
+                # sub.run([checked_feram_bin.path, checked_feram_input.path],
+                #         capture_output=True,
+                #         universal_newlines=True))
+        ).map(lambda _: f'Feram: success').map_err(lambda x: f'Feram: {x}')
 
 
 class OperationSequence:
@@ -195,16 +234,20 @@ if __name__ == "__main__":
 
     # Feram(Exec(FERAM_BIN), FileIn(Path('test.feram')))
 
-    test_file = Path.cwd() / 'test'
-    test_dir = Path.cwd() / 'dir'
+    test_path = src_root() / 'test' / 'file_operations'
+    test_file = test_path / 'test'
+    test_dir  = test_path / 'dir'
 
     operations: list[Operation] = [
         MkDirs(DirOut(test_dir)),
-        WithDir(DirIn(test_dir),
+        WithDir(DirIn(test_path), DirIn(test_dir),
                 Append(FileIn(test_file),
                        FileOut(test_dir / 'dir_test'))),
         Append(FileIn(test_file),
-               FileOut(Path.cwd() / 'append'))
+               FileOut(test_path / 'append')),
+        Copy(FileIn(test_path / 'append'),
+               FileOut(test_path / 'rename')),
+        # Remove(FileIn(test_path/'rename'))
     ]
 
     OperationSequence(operations).run()

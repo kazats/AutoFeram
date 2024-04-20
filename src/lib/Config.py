@@ -89,7 +89,7 @@ class FeramConfig:
     setup: SetupDict
     material: Material
 
-    def write_feram_file(self, feram_file):
+    def write_feram_file(self, feram_file_path: Path):
         def generate_key_val(k: str, v: str):
             return f"{k} = {v}"
 
@@ -105,9 +105,7 @@ class FeramConfig:
             # for k, v in d.items():
             #     yield generate_key_val(k, v)
 
-        filepath = Path.cwd() / feram_file
-
-        with open(filepath, 'w') as feram_input_file:
+        with open(feram_file_path, 'w') as feram_input_file:
             for i in generate_feram_file(asdict(self)):
                 feram_input_file.write(f"{i}\n")
 
