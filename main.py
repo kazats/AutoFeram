@@ -3,9 +3,10 @@ import shutil
 from pathlib import Path
 from typing import cast
 
-from src.lib.Util import src_root
-from src.lib import Config, Control
+from src.lib import Config
+from src.lib.control import Temperature, ECE
 from src.lib.materials.BTO import BTO
+from src.lib.Util import src_root
 
 
 if __name__ == "__main__":
@@ -37,7 +38,7 @@ if __name__ == "__main__":
         ]),
         material = BTO
     )
-    Control.control_temperature(config, SIM_NAME, FERAM_BIN, test_path, Ti=10, Tf=20, dT=5)
+    Temperature.control_temperature(config, SIM_NAME, FERAM_BIN, test_path, Ti=10, Tf=20, dT=5)
 
 
     # material       = BTO
