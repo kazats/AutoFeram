@@ -1,5 +1,6 @@
 import os
 import shutil
+import colors
 from pathlib import Path
 from typing import cast
 
@@ -38,7 +39,14 @@ if __name__ == "__main__":
         ]),
         material = BTO
     )
-    Temperature.control_temperature(config, SIM_NAME, FERAM_BIN, test_path, Ti=10, Tf=20, dT=5)
+    res = Temperature.control_temperature(config,
+                                    SIM_NAME,
+                                    FERAM_BIN,
+                                    test_path,
+                                    Ti=10, Tf=20, dT=5)
+
+    color_res = colors.yellow(res) if res.is_ok() else colors.red(res)
+    print(color_res)
 
 
     # material       = BTO

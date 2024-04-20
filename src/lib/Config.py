@@ -1,6 +1,6 @@
+from collections.abc import Generator
 from dataclasses import dataclass, asdict
-from pathlib import Path
-from typing import Tuple, Any, TypeAlias
+from typing import Any, TypeAlias
 from functools import reduce
 
 
@@ -90,12 +90,12 @@ class FeramConfig:
     setup: SetupDict
     material: Material
 
-    def write_feram_file(self, feram_file_path: Path):
+    def generate_feram_file(self) -> str:
         def generate_key_val(k: str, v: str):
             return f"{k} = {v}"
 
-        def generate_feram_file(d: dict):
-            for k, v in d.items():
+        def file_generator() -> Generator[str, None, None]:
+            for k, v in asdict(self).items():
                 yield f"# {k}"
 
                 for vk, vv in v.items():
@@ -106,9 +106,7 @@ class FeramConfig:
             # for k, v in d.items():
             #     yield generate_key_val(k, v)
 
-        with open(feram_file_path, 'w') as feram_input_file:
-            for i in generate_feram_file(asdict(self)):
-                feram_input_file.write(f"{i}\n")
+        return '\n'.join(file_generator())
 
     def last_coord(self) -> str:
         total_steps = self.setup['n_thermalize'] + self.setup['n_average']

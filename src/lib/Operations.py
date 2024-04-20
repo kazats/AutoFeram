@@ -22,8 +22,8 @@ def from_completed_process(completed_process: sub.CompletedProcess) -> Result[st
 
 
 def relative_to_cwd(path: Path) -> Path:
-    return path
-    # return path.relative_to(Path.cwd())
+    # return path
+    return path.relative_to(Path.cwd())
 
 
 PreconditionReturn: TypeAlias = Result[Path, str]
@@ -112,7 +112,7 @@ class Cd(Operation):
         return do(
             as_result(OSError)(os.chdir)(checked.path)
             for checked in dir.check_preconditions()
-        ).map(lambda _: f'Cd: {dir.path}').map_err(lambda x: f'Cd: {str(x)}')
+        ).map(lambda _: f'Cd: {relative_to_cwd(dir.path)}').map_err(lambda x: f'Cd: {str(x)}')
 
 
 class WithDir(Operation):
@@ -125,7 +125,7 @@ class WithDir(Operation):
             for to_dir in Cd(dir).run()
             for res in operation.run()
             for dir_from in Cd(cwd).run()
-        ).map(lambda _: f'WithDir: {dir.path}').map_err(lambda x: f'WithDir: {str(x)}')
+        ).map(lambda _: f'WithDir: {relative_to_cwd(dir.path)}').map_err(lambda x: f'WithDir: {str(x)}')
 
 
 class Remove(Operation):
@@ -136,7 +136,7 @@ class Remove(Operation):
         return do(
             as_result(OSError)(os.remove)(checked.path)
             for checked in file.check_preconditions()
-        ).map(lambda _: f'Remove: {file.path}').map_err(lambda x: f'Remove: {str(x)}')
+        ).map(lambda _: f'Remove: {relative_to_cwd(file.path)}').map_err(lambda x: f'Remove: {str(x)}')
 
 
 class Rename(Operation):
@@ -147,7 +147,7 @@ class Rename(Operation):
         return do(
             as_result(OSError)(os.rename)(checked_src.path, dst.path)
             for checked_src in src.check_preconditions()
-        ).map(lambda _: f'Rename: {src.path} >> {dst.path}').map_err(lambda x: f'Rename: {str(x)}')
+        ).map(lambda _: f'Rename: {relative_to_cwd(src.path)} >> {relative_to_cwd(dst.path)}').map_err(lambda x: f'Rename: {str(x)}')
 
 
 class Cat(Operation):
@@ -162,7 +162,7 @@ class Cat(Operation):
                 sub.run(['cat', checked.path],
                         capture_output=True,
                         universal_newlines=True))
-        ).map(lambda x: f'Cat: {x}').map_err(lambda x: f'Cat: {x}')
+        ).map(lambda _: f'Cat: {relative_to_cwd(file.path)}').map_err(lambda x: f'Cat: {x}')
         # return do(
         #     Ok(res)
         #     for checked in file.check_preconditions()
@@ -179,7 +179,7 @@ class Copy(Operation):
         return do(
             as_result(OSError)(shutil.copy2)(checked_src.path, dst.path)
             for checked_src in src.check_preconditions()
-        ).map(lambda _: f'Copy: {src.path} >> {dst.path}').map_err(lambda x: f'Copy: {str(x)}')
+        ).map(lambda _: f'Copy: {relative_to_cwd(src.path)} >> {relative_to_cwd(dst.path)}').map_err(lambda x: f'Copy: {str(x)}')
 
 
 class Append(Operation):
@@ -199,6 +199,23 @@ class Append(Operation):
             for checked_out in path_out.check_preconditions()
             for res in self.safe_append(checked_in, checked_out)
         ).map(lambda _: f"Append: '{relative_to_cwd(path_in.path)}' >> '{relative_to_cwd(path_out.path)}'").map_err(lambda x: f'Append: {x}')
+
+
+class Write(Operation):
+    def __init__(self, file: FileOut, content: Callable[[], str]) -> None:
+        super().__init__(lambda: self.do(file, content))
+
+    @as_result(Exception)
+    def safe_write(self, file: FileOut, s: str):
+        with open(file.path, 'w') as outf:
+            outf.write(s)
+
+    def do(self, file: FileOut, content: Callable[[], str]) -> Result[Any, str]:
+        return do(
+            Ok(res)
+            for checked_out in file.check_preconditions()
+            for res in self.safe_write(checked_out, content())
+        ).map(lambda _: f"Write: '{relative_to_cwd(file.path)}'").map_err(lambda x: f'Write: {x}')
 
 
 class Feram(Operation):
