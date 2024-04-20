@@ -84,6 +84,7 @@ class SolidSolution(Material):
 
 
 SetupDict: TypeAlias = dict[str, Any]
+
 @dataclass
 class FeramConfig:
     setup: SetupDict

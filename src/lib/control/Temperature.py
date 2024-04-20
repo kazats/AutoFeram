@@ -1,8 +1,4 @@
-import os
-import subprocess as sp
-import shutil
 from pathlib import Path
-from dataclasses import dataclass
 
 from src.lib import Config
 from src.lib.Operations import *
@@ -18,12 +14,12 @@ def control_temperature(
     dT: int
     ):
 
-    feram_file         = dst / f'{sim_name}.feram'
-    avg_file           = dst / f'{sim_name}.avg'
-    thermo_file        = dst / 'thermo.avg'
-    dipoRavg_file      = dst / f'{sim_name}.dipoRavg'
-    last_coord_file    = dst / f'{sim_name}.{config.last_coord()}.coord'
-    restart_file       = dst / f'{sim_name}.restart'
+    feram_file      = dst / f'{sim_name}.feram'
+    avg_file        = dst / f'{sim_name}.avg'
+    thermo_file     = dst / 'thermo.avg'
+    dipoRavg_file   = dst / f'{sim_name}.dipoRavg'
+    last_coord_file = dst / f'{sim_name}.{config.last_coord()}.coord'
+    restart_file    = dst / f'{sim_name}.restart'
 
     res = OperationSequence([
         MkDirs(DirOut(dst / 'dipoRavg')),
