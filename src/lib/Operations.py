@@ -95,6 +95,14 @@ class Operation:
         return res
 
 
+class Empty(Operation):
+    def __init__(self) -> None:
+        super().__init__(lambda: self.do())
+
+    def do(self) -> Result[Any, str]:
+        return Ok(f"Empty: 😄")
+
+
 class MkDirs(Operation):
     def __init__(self, path: DirOut) -> None:
         super().__init__(lambda: self.do(path))
@@ -112,7 +120,7 @@ class Cd(Operation):
         return do(
             as_result(OSError)(os.chdir)(checked.path)
             for checked in dir.check_preconditions()
-        ).map(lambda _: f'Cd: {relative_to_cwd(dir.path)}').map_err(lambda x: f'Cd: {str(x)}')
+        ).map(lambda _: f'Cd: {dir.path}').map_err(lambda x: f'Cd: {str(x)}')
 
 
 class WithDir(Operation):

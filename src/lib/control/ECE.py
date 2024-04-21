@@ -1,84 +1,68 @@
-import os
-import subprocess as sp
-import shutil
 from pathlib import Path
 from dataclasses import dataclass
+from result import is_err
+from itertools import zip_longest
 
-from src.lib import Config
+from src.lib.Config import *
 from src.lib.Operations import *
 
 
 @dataclass
 class ECEConfig:
-    material:      Config.Material
-    step1_preNPT:  list[Config.Setup]
-    step2_preNPE:  list[Config.Setup]
-    step3_rampNPE: list[Config.Setup]
-    step4_postNPE: list[Config.Setup]
+    material:      Material
+    step1_preNPT:  list[Setup]
+    step2_preNPE:  list[Setup]
+    step3_rampNPE: list[Setup]
+    step4_postNPE: list[Setup]
 
 
-def measure_ece(
+def run(
     sim_name:  str,
     feram_bin: Path,
+    dst: Path,
     ece_config: ECEConfig
     ):
     """Electrocaloric Effect"""
 
-    def add_setups(setups: list[Config.Setup]) -> Config.FeramConfig:
-        return Config.FeramConfig(
-            setup    = Config.merge_setups(setups),
+    def setup_with(setups: list[Setup]) -> FeramConfig:
+        return FeramConfig(
+            setup    = merge_setups(setups),
             material = ece_config.material
         )
 
-    cwd           = Path.cwd()
-    step1_preNPT  = cwd / '1_preNPT'
-    step2_preNPE  = cwd / '2_preNPE'
-    step3_rampNPE = cwd / '3_rampNPE'
-    step4_postNPE = cwd / '4_postNPE'
+    steps = [
+        (dst / '1_preNPT',  ece_config.step1_preNPT),
+        (dst / '2_preNPE',  ece_config.step2_preNPE),
+        (dst / '3_rampNPE', ece_config.step3_rampNPE),
+        (dst / '4_postNPE', ece_config.step4_postNPE)
+    ]
 
-    [ os.makedirs(step, exist_ok=True)
-        for step
-        in [step1_preNPT, step2_preNPE, step3_rampNPE, step4_postNPE] ]
+    res = OperationSequence([MkDirs(DirOut(dir))
+        for dir, _ in steps]).run()
 
-
-    os.chdir(step1_preNPT)
-
-    config          = add_setups(ece_config.step1_preNPT)
-    feram_file      = step1_preNPT / f'{sim_name}.feram'
-    last_coord_file = step1_preNPT / f'{sim_name}.{config.last_coord()}.coord'
-    restart_file    = step2_preNPE / f'{sim_name}.restart'
-
-    config.write_feram_file(feram_file)
-    sp.run([feram_bin, feram_file], check=True)
-
-    shutil.copy2(last_coord_file, restart_file)   # sp.call(f"cp ./{sim_name}.{config.last_coord()}.coord ./{sim_name}.restart")
+    if is_err(res):
+        return res
 
 
-    os.chdir(step2_preNPE)
+    for (dir, setups), (dir_next, _) in zip_longest(steps, steps[1:], fillvalue=(Any, Any)):
+        config          = setup_with(setups)
+        feram_file      = dir / f'{sim_name}.feram'
+        last_coord_file = dir / f'{sim_name}.{config.last_coord()}.coord'
+        maybe_copy      = Copy(FileIn(last_coord_file),
+                               FileOut(dir_next / f'{sim_name}.restart'))\
+                            if dir_next is not Any else Empty()
 
-    config          = add_setups(ece_config.step2_preNPE)
-    feram_file      = step2_preNPE / f'{sim_name}.feram'
-    last_coord_file = step2_preNPE / f'{sim_name}.{config.last_coord()}.coord'
-    restart_file    = step3_rampNPE / f'{sim_name}.restart'
+        res = OperationSequence([
+            Write(FileOut(feram_file),
+                  config.generate_feram_file),
+            WithDir(DirIn(dst),
+                    DirIn(dir),
+                    Feram(Exec(feram_bin),
+                          FileIn(feram_file))),
+            maybe_copy
+        ]).run()
 
-    config.write_feram_file(feram_file)
-    sp.run([feram_bin, feram_file], check=True)
+        if is_err(res):
+            return res
 
-    shutil.copy2(last_coord_file, restart_file)
-
-
-    # os.chdir(step3_rampNPE)
-    # config = add_setups(ece_config.step3_rampNPE)
-    # last_coord_file = f'{sim_name}.{config.last_coord()}.coord'
-    # config.write_feram_file(feram_file)
-    # sp.run([feram_bin, feram_file], check=True)
-    # os.chdir(cwd)
-    # shutil.copy2(step3_rampNPE / last_coord_file, step4_postNPE / restart_file)     # sp.call(f"cp ./{sim_name}.{config.last_coord()}.coord ./{sim_name}.restart")
-    #
-    #
-    # os.chdir(step4_postNPE)
-    # config = add_setups(ece_config.step3_rampNPE)
-    # last_coord_file = f'{sim_name}.{config.last_coord()}.coord'
-    # config.write_feram_file(feram_file)
-    # sp.run([feram_bin, feram_file], check=True)
-    # os.chdir(cwd)
+    return Ok('Measure ECE: success')

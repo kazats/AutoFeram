@@ -5,7 +5,7 @@ from src.lib import Config
 from src.lib.Operations import *
 
 
-def control_temperature(
+def run(
     config: Config.FeramConfig,
     sim_name: str,
     feram_bin: Path,
@@ -56,5 +56,3 @@ def control_temperature(
             return res
 
     return Ok('Control Temperature: success')
-
-    # spb.call(f"rm {NAME}.restart", shell=True)
