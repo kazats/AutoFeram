@@ -14,6 +14,10 @@ from matplotlib.ticker import NullFormatter
 import materials
 import pickle
 
+from src.lib.Config import *
+from src.lib.Config import *
+from src.lib.materials.BTO import BTO
+
 markers = ['o', '*', '<', '3', 'v', '^', '>', '1', '2', '4', '8', 's', 'p', 'P', 'h', 'H', '+', 'x', 'X', 'D']
 linestyles = ['-', '--', '-.', ':', 'solid', 'dashed', 'dashdot', 'dotted','-', '--', '-.', ':', 'solid', 'dashed', 'dashdot', 'dotted']
 prop_cycle = plt.rcParams['axes.prop_cycle']
@@ -30,8 +34,8 @@ def project_u_onto_v(U, V):
     return (np.dot(u, v)/np.dot(v,v))*v
 
 ### analysis
-def determine_phase(Px, Py, Pz):
-    zero_noise=0.5
+def determine_phase(Px, Py, Pz, zero_noise=0.5):
+    zero_noise=zero_noise                   # tolerence for noise, i.e. if the diff btw two values is < zero_noise, the values are considered the same.
     px=abs(Px)
     py=abs(Py)
     pz=abs(Pz)
@@ -44,7 +48,7 @@ def determine_phase(Px, Py, Pz):
         elif ((abs(px-py)<zero_noise*1 and abs(px-pz)>zero_noise*1 and px>pz) or (abs(px-pz)<zero_noise*1 and abs(px-py)>zero_noise*1 and px>py) or (abs(pz-py)<zero_noise*1 and abs(pz-px)>zero_noise*1 and pz>px)):
             phasename='Mb' #(a,a,b), a>b
         else:
-            phasename='M (111)' #(a,b,c)
+            phasename='Tri' #(a,b,c): triclinic phase
     elif ((px<zero_noise and py>zero_noise and pz>zero_noise and abs(py-pz)<zero_noise*1) or (px>zero_noise and py<zero_noise and pz>zero_noise and abs(px-pz)<zero_noise*1) or (px>zero_noise and py>zero_noise and pz<zero_noise and abs(py-px)<zero_noise*1)):
         phasename='O' #(a,a,0)
     elif ((px<zero_noise and py>zero_noise and pz>zero_noise and abs(py-pz)>zero_noise*1) or (px>zero_noise and py<zero_noise and pz>zero_noise and abs(px-pz)>zero_noise*1) or (px>zero_noise and py>zero_noise and pz<zero_noise and abs(py-px)>zero_noise*1)):
@@ -54,172 +58,70 @@ def determine_phase(Px, Py, Pz):
     elif ((px<zero_noise and py<zero_noise and pz<zero_noise)):
         phasename='C' #(0,0,0)
     else:
-        phasename='M'
+        phasename='???'
     return phasename
 
 ### file post processing
-def get_avg(path, zstar, avgfile="thermo.avg",comment="thermo"):
-    ''' this save avg file in df and .csv format '''
-    data = open(f"{path}/{avgfile}", "r").readlines()
-    factor = get_factor(zstar)
-    #ex,ey,ez,px,py,pz,T, totalP, Edk, dkt, Eak =[],[],[],[],[],[],[], [], [], [], []
-    ex,ey,ez,px,py,pz,T, totalP,phase, Edk, dkt, Eak,Etot,EdE =[],[],[],[],[],[],[],[],[],[],[],[],[],[]
-    E_dipolekinetic, E_longrange, E_dipolefield, E_self, E_homostrain, E_homocoupling, E_inhostrain, E_inhocoupling, E_tot, E_thermostat, E_acoukinetic, E_shortrange, E_inhomodulation  = [], [], [], [], [], [], [], [], [], [], [], [], []
-    s_xx, s_yy, s_zz, s_yz, s_xz, s_xy = [],[],[],[],[],[]
-    u_1, u_2, u_3 = [], [], []
-    uu1, uu2, uu3, uu4, uu5, uu6 = [],[],[],[],[],[] 
-    p_1, p_2, p_3 = [],[],[]  
-    pp1, pp2, pp3, pp4, pp5, pp6 = [],[],[],[],[],[] 
-    for d in data:
-        d=d.split(' ') #type of d: list
-        d=filter(None, d) #type of d:filter
-        d=[float(i) for i in d]
-        T.insert(0,int(d[0]))
-        ex.insert(0,float(d[1])) #electric field
-        ey.insert(0,float(d[2]))
-        ez.insert(0,float(d[3]))
-        s_xx.insert(0,float(d[4]))
-        s_yy.insert(0,float(d[5]))
-        s_zz.insert(0,float(d[6]))
-        s_yz.insert(0,float(d[7]))
-        s_xz.insert(0,float(d[8]))
-        s_xy.insert(0,float(d[9]))
-        u_1.insert(0,float(d[10]))
-        u_2.insert(0,float(d[11]))
-        u_3.insert(0,float(d[12]))
-        uu1.insert(0,float(d[13]))
-        uu2.insert(0,float(d[14]))
-        uu3.insert(0,float(d[15]))
-        uu4.insert(0,float(d[16]))
-        uu5.insert(0,float(d[17]))
-        uu6.insert(0,float(d[18]))
-        E_dipolekinetic.insert(0,float(d[19]))  
-        E_longrange.insert(0,float(d[20]))     
-        E_dipolefield.insert(0,float(d[21]))         
-        E_self.insert(0,float(d[22]))            
-        E_homostrain.insert(0,float(d[23]))         
-        E_homocoupling.insert(0,float(d[24]))               
-        E_inhostrain.insert(0,float(d[25]))          
-        E_inhocoupling.insert(0,float(d[26]))                  
-        E_tot.insert(0,float(d[27]))             
-        E_thermostat.insert(0,float(d[28]))            
-        E_acoukinetic.insert(0,float(d[31]))            
-        E_shortrange.insert(0,float(d[32]))          
-        E_inhomodulation.insert(0,float(d[33]))          
-        p_1.insert(0,float(d[34]))
-        p_2.insert(0,float(d[35]))
-        p_3.insert(0,float(d[36]))
-        pp1.insert(0,float(d[37]))
-        pp2.insert(0,float(d[38]))
-        pp3.insert(0,float(d[39]))
-        pp4.insert(0,float(d[40]))
-        pp5.insert(0,float(d[41]))
-        pp6.insert(0,float(d[42]))
+def get_avg(path, material_config):
+    with open(f'{path}', 'r') as inf:
+        df = pd.read_table(inf, sep=r'\s+', header=None,\
+                           names=['kelvin', 'Ex', 'Ey', 'Ez', 's_xx', 's_yy', 's_zz', 's_yz', 's_xz', 's_xy',\
+                                  'u1', 'u2', 'u3', 'uu1', 'uu2', 'uu3', 'uu4', 'uu5', 'uu6',\
+                                  'e_dipo_kinetic', 'e_long_range', 'e_dipole_E_field', 'e_unharmonic', 'e_homo_strain', 'e_homo_coupling', 'e_inho_strain', 'e_inho_coupling', 'e_total', 'e_Nose_Poincare', 'e2', 'dipo_kinetic_true', 'e_acou_kinetic', 'e_short_range', 'e_inho_modulation',\
+                                  'p1', 'p2', 'p3', 'pp1', 'pp2', 'pp3', 'pp4', 'pp5', 'pp6'])
+    factor = material_config.polarization_parameters()
+    df['px'] = df['u1'] * factor
+    df['py'] = df['u2'] * factor
+    df['pz'] = df['u3'] * factor
+    df['p_total'] = np.sqrt(df['px']**2 + df['py']**2 + df['pz']**2)
+    df['phase'] = [ determine_phase(px, py, pz) for (px, py, pz) in zip(df['px'], df['py'], df['pz']) ] 
 
-        px.insert(0,float(d[10])*factor) #polarization
-        py.insert(0,float(d[11])*factor)
-        pz.insert(0,float(d[12])*factor)
-        totalP.insert(0,float(np.sqrt(d[10]*factor*d[10]*factor + d[11]*factor*d[11]*factor + d[12]*factor*d[12]*factor)))
-        phase.insert(0,determinephase(float(d[10])*factor, float(d[11])*factor, float(d[12])*factor))
-
-        # below is arcsin: value: 0-90-0
-        #anglebetweenEfield.insert(0,180/np.pi*np.arcsin(mag(np.cross([d[1],d[2],d[3]], [d[10],d[11],d[12]]))/(mag([d[1],d[2],d[3]])*(mag([d[10],d[11],d[12]])))))
-        # below is arccos: value: 0-180
-        #anglebetweenEfield.insert(0,180/np.pi*np.arccos( (d[1] * d[10] + d[2] * d[11] + d[3] * d[12]) / (np.sqrt(d[1]*d[1] + d[2]*d[2] + d[3]*d[3]) * np.sqrt(d[10]*d[10] + d[11]*d[11] + d[12]*d[12])) ))
-        # angle = arccos[(xa * xb + ya * yb + za * zb) / (√(xa2 + ya2 + za2) * √(xb2 + yb2 + zb2))]
-        # [d[1], d[2], d[3]] = [ex, ey, ez] - [xa, ya, za]
-        # [d[10], d[11], d[12]] = [px, py, pz] - [xb, yb, zb]
-
-        #anglebetweenXaxis.insert(0,180/np.pi*np.arccos( (1 * d[10] + 0 * d[11] + 0 * d[12]) / (np.sqrt(1*1 + 0*0 + 0*0) * np.sqrt(d[10]*d[10] + d[11]*d[11] + d[12]*d[12])) ))
-
-        #Edk.insert(0,float(d[19]))
-        #dkt.insert(0,float(d[30]))
-        #Eak.insert(0,float(d[31]))
-        #Etot.insert(0,float(d[27]))
-        #EdE.insert(0,float(d[21]))
-
-#    d=np.array(list(zip(T,ex,ey,ez,px,py,pz, totalP, Edk, dkt, Eak)))
-#    df = pd.DataFrame(d, columns="T ex ey ez px py pz P Edk dkt Eak".split(" "))
-#    d=np.array(list(zip(T, px,py,pz, totalP, phase))) # conversion into np.array deletes the type info.
-    d=list(zip(T, ex,ey,ez, px,py,pz, totalP, phase, E_dipolekinetic, E_longrange, E_dipolefield, E_self, E_homostrain, E_homocoupling, E_inhostrain, E_inhocoupling, E_tot, E_thermostat, E_acoukinetic, E_shortrange, E_inhomodulation, s_xx, s_yy, s_zz, s_yz, s_xz, s_xy, u_1, u_2, u_3, uu1, uu2, uu3, uu4, uu5, uu6, p_1, p_2, p_3, pp1, pp2, pp3, pp4, pp5, pp6   ))
-    
-    df = pd.DataFrame(d, columns="T ex ey ez px py pz P phase E_dipolekinetic E_longrange E_dipolefield E_self E_homostrain E_homocoupling E_inhostrain E_inhocoupling E_tot E_thermostat E_acoukinetic E_shortrange E_inhomodulation s_xx s_yy s_zz s_yz s_xz s_xy u_1 u_2 u_3 uu1 uu2 uu3 uu4 uu5 uu6 p_1 p_2 p_3 pp1 pp2 pp3 pp4 pp5 pp6".split(" ")) 
-    df.to_csv(f"{path}/{comment}.csv")
+    # df.to_csv(f"{path}/{save_as}.csv")
     return df
 
-def get_hl(path,name, zstar, extract=False):
-    if extract == False and os.path.exists(f'{path}/{name}_hl.txt'):
-        return pd.read_csv(f'{path}/{name}_hl.txt', header=0, index_col=0)
-    else:
-        data=open(f'{path}/{name}.hl','r').readlines()
-        T, Etot,Ex,Ey,Ez,s1,s2,s3,s4,s5,s6,u1,u2,u3,p1,p2,p3,ptot,Ek=[],[],[], [],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]
-        factor=get_factor(zstar)
-        for d in data:
-            d=[float(i) for i in d.split()]
-            T.append(float(d[1]))
-            Ex.append(float(d[2]))
-            Ey.append(float(d[3]))
-            Ez.append(float(d[4]))
-            Etot.append(np.linalg.norm([float(d[2]),float(d[3]),float(d[4])]))
-    #         E_project_100.append( project_u_onto_v([float(d[2]), float(d[3]), float(d[4])], [1,0,0]) )
-            s1.append(float(d[5]))
-            s2.append(float(d[6]))
-            s3.append(float(d[7]))
-            s4.append(float(d[8]))
-            s5.append(float(d[9]))
-            s6.append(float(d[10]))
-            u1.append(float(d[11]))
-            u2.append(float(d[12]))
-            u3.append(float(d[13]))
-            p1.append(float(d[11])*factor) #displacement * factor = polarization
-            p2.append(float(d[12])*factor)
-            p3.append(float(d[13])*factor)
-    #         P_project_100.append( project_u_onto_v([float(d[11])*factor, float(d[12])*factor, float(d[13])*factor], [1,0,0]) )
-            ptot.append(np.linalg.norm([float(d[11])*factor,float(d[12])*factor,float(d[13])*factor]))
-            Ek.append(float(d[20]))
-        d=list(zip(T,Ex,Ey,Ez,Etot, s1,s2,s3,s4,s5,s6,p1,p2,p3,ptot,Ek))
-        df = pd.DataFrame(d, columns="T Ex Ey Ez Etot s1 s2 s3 s4 s5 s6 px py pz ptot Ek".split(" "))
-        df.to_csv(f'{path}/{name}_hl.txt')
-        return df
+def get_hl(path, material_config):
+    with open(f'{path}', 'r') as inf:
+        df = pd.read_table(inf, sep=r'\s+', header=None,\
+                           names=['step', 'kelvin', 'Ex', 'Ey', 'Ez', 's_xx', 's_yy', 's_zz', 's_yz', 's_xz', 's_xy',\
+                                  'u1', 'u2', 'u3', '_', '_', '_', '_', '_', '_',\
+                                  'e_dipo_kinetic', 'e_short_range', 'e_long_range', 'e_dipole_E_field', 'e_unharmonic', 'e_homo_strain', 'e_homo_coupling', 'e_inho_strain', 'e_inho_coupling', 'e_inho_modulation', 'e_total', 'e_Nose_Poincare', 'e2', 'dipo_kinetic_true', 'e_acou_kinetic'])
+    factor = material_config.polarization_parameters()
+    df['px'] = df['u1'] * factor
+    df['py'] = df['u2'] * factor
+    df['pz'] = df['u3'] * factor
+    df['p_total'] = np.sqrt(df['px']**2 + df['py']**2 + df['pz']**2)
+        # df.to_csv(f'{path}/{name}_hl.txt')
+    return df
 
-def get_from_coord(path,name,zstar):
-    data=open(f'{path}/{name}','r').readlines()
-    x,y,z,u1,u2,u3,p1,p2,p3,ptot=[],[],[],[],[],[],[],[],[],[]
-    factor=get_factor(zstar)
-    for d in data:
-        d=d.split(' ')
-        d=filter(None, d)
-        d=[float(i) for i in d]
-        x.append(float(d[0]))
-        y.append(float(d[1]))
-        z.append(float(d[2]))
-        u1.append(float(d[3]))
-        u2.append(float(d[4]))
-        u3.append(float(d[5]))
-        p1.append(float(d[3])*factor) #displacement * factor = polarization
-        p2.append(float(d[4])*factor)
-        p3.append(float(d[5])*factor)
-        ptot.append(np.linalg.norm([float(d[3])*factor,float(d[4])*factor,float(d[5])*factor]))
-    d=list(zip(x,y,z,p1,p2,p3,ptot))
-    df = pd.DataFrame(d, columns="x y z px py pz ptot".split(" "))
+def get_coord(path, material_config):
+    with open(f'{path}', 'r') as inf:
+        df = pd.read_table(inf, sep=r'\s+', header=None,\
+                           names=['x', 'y', 'z', 'u1', 'u2', 'u3',\
+                                  'dipoP1', 'dipoP2', 'dipoP3',\
+                                  'dVddi1', 'dVddi2', 'dVddi3',\
+                                  'acouR1', 'acouR2', 'acouR3',\
+                                  'acouP1', 'acouP2', 'acouP3'])
+    factor = material_config.polarization_parameters()
+    df['px'] = df['u1'] * factor
+    df['py'] = df['u2'] * factor
+    df['pz'] = df['u3'] * factor
+    df['p_total'] = np.sqrt(df['px']**2 + df['py']**2 + df['pz']**2)
 #     df.to_csv(f"{path}/{name}_hl.csv")
     return df
 
-def get_p(path, name, zstar):
-    data=open(f'{path}/{name}.dipoRavg','r').readlines()
-    p1,p2,p3=[],[],[]
-    factor=get_factor(zstar)
-    for d in data:
-        d=d.split(' ')
-        d=filter(None, d)
-        d=[float(i) for i in d]
-        p1.append(float(d[3])*factor) #displacement * factor = polarization
-        p2.append(float(d[4])*factor)
-        p3.append(float(d[5])*factor)
-    return p1,p2,p3
+def get_dipoRavg(path, material_config):
+    with open(f'{path}', 'r') as inf:
+        df = pd.read_table(inf, sep=r'\s+', header=None,\
+                           names=['x', 'y', 'z', 'u1', 'u2', 'u3'])
+    factor = material_config.polarization_parameters()
+    df['px'] = df['u1'] * factor
+    df['py'] = df['u2'] * factor
+    df['pz'] = df['u3'] * factor
+    df['p_total'] = np.sqrt(df['px']**2 + df['py']**2 + df['pz']**2)
+    return df
 
-def polarization_distribution(path,name,zstar,setting=[('px','r'),('py','g'),('pz','b')]): # .coord, .restart
-    d=get_from_coord(path=f'{path}',name=f'{name}', zstar=zstar)
+def polarization_distribution(path, material_config,setting=[('px','r'),('py','g'),('pz','b')]): # .coord, .restart
+    d=get_coord(f'{path}', material_config)
     for i in range(len(setting)):
         n, bins, patches = plt.hist(x=d[setting[i][0]], bins='auto', density=True,color=setting[i][1],alpha=0.5, rwidth=1)
 
@@ -233,25 +135,6 @@ def get_properties_from_txt(file):
         p.append(float(d[0])) #displacement * factor = polarization
     return p
 
-def layerP_fromdipoRavg(Dname,fname,zstar):
-    data = open(f"{Dname}/{fname}.dipoRavg", "r").readlines()
-    factor=get_factor(zstar)
-    x,y,z,px,py,pz =[],[],[],[],[],[]
-    for d in data:
-        d=d.split(' ') #type of d: list
-        d=filter(None, d) #type of d:filter
-        d=[float(i) for i in d]
-        x.append(float(d[0])*factor) #polarization
-        y.append(float(d[1])*factor)
-        z.append(float(d[2])*factor)
-        #pxpypz.append([float(d[3])*factor,float(d[4])*factor,float(d[5])*factor])
-        px.append(float(d[3])*factor) #polarization
-        py.append(float(d[4])*factor)
-        pz.append(float(d[5])*factor)
-    d=list(zip(x,y,z,px,py,pz))
-    df = pd.DataFrame(d, columns="x y z px py pz".split(" "))
-    df.to_csv(f"{Dname}/layerx_dipoRavg.csv")
-    return df
 
 def evolution(path, name, zstar, firsttime=False,inittime=-160):
     factor=get_factor(zstar)
@@ -494,3 +377,10 @@ def hist2D_hist1D(data_dict, T, lim1, lim2, cb_min, cb_max, binx='auto', biny='a
     axHisty.set_ylim(axHist2D.get_ylim())
     plt.savefig(f'{title}.pdf', bbox_inches="tight")
     return fig, ax
+
+
+def move_to(path_src, path_des):
+    rsync -avr path_src path_des
+    rm -rf path_src
+    return
+# consider this package: pyrsync
