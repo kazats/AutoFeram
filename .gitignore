@@ -4,12 +4,13 @@ tags
 bin/
 lib/
 lib64
+share/man
 pyvenv.cfg
 include/
 __pycache__/
 no_need/
-test/ 
-test.py 
+test/
+test.py
 send/
 howto_pythonvenv.txt
 
