@@ -112,8 +112,10 @@ class FeramConfig:
         total_steps = self.setup['n_thermalize'] + self.setup['n_average']
         return str(total_steps).zfill(10)
 
-    def polarization_parameters(self) -> dict:
-        return {'a0': self.material.a0,
-                'Z_star': self.material.Z_star,
-                'factor': 1.6 * 10**3 * self.material.Z_star / self.material.a0**3}
-    # factor: from displacement to polarization; physical meaning: effective charge 
+    def polarization_parameters(self) -> dict[str, float]:
+        return {
+            'a0':     self.material.a0,
+            'Z_star': self.material.Z_star,
+            'factor': 1.6 * 10**3 * self.material.Z_star / self.material.a0**3
+        }
+    # factor: from displacement to polarization; physical meaning: effective charge
