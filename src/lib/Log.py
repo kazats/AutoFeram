@@ -29,34 +29,31 @@ class Timestep:
     p:               Optional[tuple[float, float, float]]
     p_sigma:         Optional[tuple[float, float, float]]
 
-# @dataclass
-# class Log:
-#     timesteps: list[Timestep]
+@dataclass
+class Log:
+    timesteps: list[Timestep]
 
 
 def read_log(log_path: Path) -> str:
     with open(log_path, 'r') as log:
         return log.read()
 
-def parse_log(log: str) -> list[Timestep]:
+def parse_log(log: str) -> Log:
     floating       = regex(r'\-?\d+\.\d+').map(float)
     integer        = regex(r'\d+').map(int)
     any_char_until = any_char.until
 
     def float_element(token: str) -> Parser:
-        return seq(
-            any_char_until(string(token)) >> string(token),
-            whitespace >> floating)\
-        .map(tuple)\
-        .desc(token)
+        tok = any_char_until(string(token)) >> string(token)
+        flt = whitespace >> floating
+
+        return seq(tok, flt).map(tuple).desc(token)
 
     def vector_element(name: str, token: str) -> Parser:
         tok = any_char_until(string(token)) >> string(token)
         vec = whitespace >> seq(floating << whitespace, floating << whitespace, floating).map(tuple)
 
-        return seq(tok.optional(), vec.optional())\
-        .combine(lambda _, v: (name, v))\
-        .desc(token)
+        return (tok >> vec).optional().map(lambda v: (name, v)).desc(token)
 
     ts_start    = (any_char_until(string('TIME_STEP')) >> string('TIME_STEP') >> whitespace >> integer).desc('ts_start')
     ts_end      = (any_char_until(string('TIME_STEP_END')).concat() << string('TIME_STEP_END') << whitespace).desc('ts_end')
@@ -92,7 +89,7 @@ def parse_log(log: str) -> list[Timestep]:
 
     ts_sections_res = ts_sections.parse_partial(log)[0]
 
-    return list(map(parse_ts_section, ts_sections_res))
+    return Log(list(map(parse_ts_section, ts_sections_res)))
 
 
 if __name__ == "__main__":
@@ -102,7 +99,7 @@ if __name__ == "__main__":
     parsed    = parse_log(log)
 
     print(parsed)
-    print(len(parsed))
+    print(len(parsed.timesteps))
 
     # log_info = read_log(log_path)
     # disp_re = r'<u>\s*=\s*(.*?)\s+(.*?)\s+(.*?)$'
