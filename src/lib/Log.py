@@ -1,10 +1,15 @@
 from parsy import Parser, seq, any_char, whitespace, string, regex
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import NamedTuple, Optional
 
 from src.lib.Util import src_root
 
+
+class Vec3(NamedTuple):
+    x: float
+    y: float
+    z: float
 
 @dataclass
 class Timestep:
@@ -23,10 +28,10 @@ class Timestep:
     H_Nose_Poincare: float
     s_Nose:          float
     pi_Nose:         float
-    u:               Optional[tuple[float, float, float]]
-    u_sigma:         Optional[tuple[float, float, float]]
-    p:               Optional[tuple[float, float, float]]
-    p_sigma:         Optional[tuple[float, float, float]]
+    u:               Optional[Vec3]
+    u_sigma:         Optional[Vec3]
+    p:               Optional[Vec3]
+    p_sigma:         Optional[Vec3]
 
 @dataclass
 class Log:
@@ -50,7 +55,7 @@ def parse_log(log: str) -> Log:
 
     def vector_element(name: str, token: str) -> Parser:
         tok = any_char_until(string(token)) >> string(token)
-        vec = whitespace >> seq(floating << whitespace, floating << whitespace, floating).map(tuple)
+        vec = whitespace >> seq(floating << whitespace, floating << whitespace, floating).map(Vec3._make)
 
         return (tok >> vec).optional().map(lambda v: (name, v)).desc(token)
 
@@ -94,11 +99,11 @@ def parse_log(log: str) -> Log:
 if __name__ == "__main__":
     test_path = src_root() / 'test' / 'temp'
     log_path  = test_path / 'bto.log'
-    log       = read_log(log_path)
-    parsed    = parse_log(log)
+    log_raw       = read_log(log_path)
+    log    = parse_log(log_raw)
 
-    print(parsed)
-    print(len(parsed.timesteps))
+    print(log)
+    print(len(log.timesteps))
 
     # log_info = read_log(log_path)
     # disp_re = r'<u>\s*=\s*(.*?)\s+(.*?)\s+(.*?)$'
