@@ -206,7 +206,7 @@ class Append(Operation):
             for checked_in in path_in.check_preconditions()
             for checked_out in path_out.check_preconditions()
             for res in self.safe_append(checked_in, checked_out)
-        ).map(lambda _: f"Append: '{relative_to_cwd(path_in.path)}' >> '{relative_to_cwd(path_out.path)}'").map_err(lambda x: f'Append: {x}')
+        ).map(lambda _: f"Append: {relative_to_cwd(path_in.path)} >> {relative_to_cwd(path_out.path)}").map_err(lambda x: f'Append: {x}')
 
 
 class Write(Operation):
