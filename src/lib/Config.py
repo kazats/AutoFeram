@@ -1,25 +1,40 @@
 from collections.abc import Generator
 from dataclasses import dataclass, asdict
+from enum import StrEnum
 from typing import Any, TypeAlias
 from functools import reduce
 
+from src.lib.common import Vec3, Vec7
+
+
+class Method(StrEnum):
+    MD = 'md'
+    LF = 'lf'
+    VS = 'vs'
+    HL = 'hl'
+
+class Structure(StrEnum):
+    Bulk = 'bulk'
+    Film = 'film'
+    Epit = 'epit'
 
 @dataclass
 class Setup:
     def to_dict(self):
         return asdict(self)
 
-
 @dataclass
 class General(Setup):
-    method: str                 = 'md'
-    bulk_or_film: str           = 'bulk'
-    L: str                      = '36 36 36'
+    method: Method              = Method.MD
+    bulk_or_film: Structure     = Structure.Bulk
+    L: Vec3[int]                = Vec3(36, 36, 36)
     dt: float                   = 0.002
+
     # temperature and pressure control
     GPa: float                  = 0
     kelvin: float               = 300
     Q_Nose: float               = 15
+
     # output
     verbose: int                = 4
     n_thermalize: int           = 40000
@@ -27,27 +42,34 @@ class General(Setup):
     n_coord_freq: int           = 60000
     distribution_directory: str = 'never'
     slice_directory: str        = 'never'
+
     # initial dipole
-    init_dipo_avg: str          = '0.0   0.0   0.0'  # [Angstrom] Average of initial dipole displacements
-    init_dipo_dev: str          = '0.02  0.02  0.02' # [Angstrom] Deviation of initial dipole displacement
+    init_dipo_avg: Vec3[float]  = Vec3(0.0, 0.0, 0.0)    # [Angstrom] Average of initial dipole displacements
+    init_dipo_dev: Vec3[float]  = Vec3(0.02, 0.02, 0.02) # [Angstrom] Deviation of initial dipole displacement
 
 
 @dataclass
 class Strain(Setup):
-    epi_strain: str = '0.00 0.00 0.00'
+    epi_strain: Vec3[float] = Vec3(0.00, 0.00, 0.00)
 
 
 @dataclass
 class EFieldStatic(Setup):
-    external_E_field: str       = '0.00 0.00 0.00'
+    external_E_field: Vec3[float] = Vec3(0.00, 0.00, 0.00)
 
+
+class EWaveType(StrEnum):
+    TriSin  = 'triangular_sin'
+    TriCos  = 'triangular_cos'
+    RampOff = 'ramping_off'
+    RampOn  = 'ramping_on'
 
 @dataclass
 class EFieldDynamic(Setup):
-    n_E_wave_period: int        = 0
-    n_hl_freq: int              = 10000
-    E_wave_type: str            = 'ramping_off'
-    external_E_field: str       = '0.00 0.00 0.00'
+    n_E_wave_period: int          = 0   # must be divisible by 4 if TriSin or TriCos
+    n_hl_freq: int                = 10000
+    E_wave_type: EWaveType        = EWaveType.RampOff
+    external_E_field: Vec3[float] = Vec3(0.00, 0.00, 0.00)
 
 
 def merge_setups(setups: list[Setup]) -> dict[str, Any]:
@@ -73,7 +95,7 @@ class Material:
     P_alpha: float # [eV/Angstrom^4],
     P_gamma: float # [eV/Angstrom^4],
     P_kappa2: float
-    j: str # [eV/Angstrom^2],
+    j: Vec7 # [eV/Angstrom^2],
     epsilon_inf: float
 
 
@@ -99,16 +121,16 @@ class FeramConfig:
 
     def generate_feram_file(self) -> str:
         def generate_key_val(k: str, v: str):
-            return f"{k} = {v}"
+            return f'{k} = {v}'
 
         def file_generator() -> Generator[str, None, None]:
             for k, v in asdict(self).items():
-                yield f"# {k}"
+                yield f'# {k}'
 
                 for vk, vv in v.items():
                     yield generate_key_val(vk, vv)
 
-                yield ""
+                yield ''
             # return (generate_key_val(k, v) for k, v in d.items())
             # for k, v in d.items():
             #     yield generate_key_val(k, v)

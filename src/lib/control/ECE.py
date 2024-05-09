@@ -1,10 +1,20 @@
+import os
+import shutil
+import colors
+from result import is_err
 from pathlib import Path
 from dataclasses import dataclass
-from result import is_err
 from itertools import zip_longest
+from typing import cast
 
+from src.lib.common import Vec3
+from src.lib.control import ECE
+from src.lib.materials.BTO import BTO
 from src.lib.Config import *
+from src.lib.Util import project_root
+from src.lib.Log import *
 from src.lib.Operations import *
+from src.lib.VisualizationNew import *
 
 
 @dataclass
@@ -66,3 +76,95 @@ def run(
             return res
 
     return Ok('Measure ECE: success')
+
+
+if __name__ == "__main__":
+    SIM_NAME = 'bto'
+    # FERAM_BIN = Path.home() / 'Code' / 'git' / 'AutoFeram' / 'feram-0.26.04' / 'build_20240401' / 'src' / 'feram'   # FERAM_BIN = Path('feram')
+    FERAM_BIN = Path(cast(str, shutil.which('feram')))
+
+
+    out_path = project_root() / 'output' / 'ece'
+    os.makedirs(out_path, exist_ok=True)
+
+    material       = BTO
+    temperature    = 200
+    size           = Vec3(2, 2, 2)
+    efield_initial = Vec3(0.001, 0, 0)
+    efield_final   = Vec3[float](0, 0, 0)
+
+    res = ECE.run(
+        SIM_NAME,
+        FERAM_BIN,
+        out_path,
+        ECE.ECEConfig(
+            material = material,
+            step1_preNPT = [
+                General(
+                    method       = Method.MD,
+                    kelvin       = temperature,
+                    L            = size,
+                    n_thermalize = 0,
+                    n_average    = 8, #0000
+                    n_coord_freq = 8, #0000
+                ),
+                EFieldStatic(
+                    external_E_field = efield_initial
+                )
+            ],
+            step2_preNPE = [
+                General(
+                    method       = Method.LF,
+                    kelvin       = temperature,
+                    L            = size,
+                    n_thermalize = 0,
+                    n_average    = 12, #0000
+                    n_coord_freq = 12, #0000
+                ),
+                EFieldStatic(
+                    external_E_field = efield_initial
+                )
+            ],
+            step3_rampNPE = [
+                General(
+                    method       = Method.LF,
+                    kelvin       = temperature,
+                    L            = size,
+                    n_thermalize = 10, #0000
+                    n_average    = 0,
+                    n_coord_freq = 10, #0000
+                ),
+                EFieldDynamic(
+                    n_hl_freq        = 1, #00
+                    n_E_wave_period  = 4, #100000,
+                    E_wave_type      = EWaveType.RampOff,
+                    external_E_field = efield_initial
+                )
+            ],
+            step4_postNPE = [
+                General(
+                    method       = Method.LF,
+                    kelvin       = temperature,
+                    L            = size,
+                    n_thermalize = 0,
+                    n_average    = 18, #0000
+                    n_coord_freq = 18, #0000
+                ),
+                EFieldStatic(
+                    external_E_field = efield_final
+                )
+            ]
+        )
+    )
+
+    color_res = colors.yellow(res) if res.is_ok() else colors.red(res)
+    print(color_res)
+
+    # post processing
+    # log_path  = out_path / 'bto.log'
+    # log_raw   = read_log(log_path)
+    # log       = parse_log(log_raw)
+    # res       = post_process(log, config)
+
+    # print(res)
+    # print(len(res))

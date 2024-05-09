@@ -1,15 +1,12 @@
+import pandas as pd
 from parsy import Parser, seq, any_char, whitespace, string, regex
 from dataclasses import dataclass
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import Optional
 
-from src.lib.Util import src_root
+from src.lib.common import Vec3
+from src.lib.Util import project_root
 
-
-class Vec3(NamedTuple):
-    x: float
-    y: float
-    z: float
 
 @dataclass
 class Timestep:
@@ -28,14 +25,17 @@ class Timestep:
     H_Nose_Poincare: float
     s_Nose:          float
     pi_Nose:         float
-    u:               Optional[Vec3]
-    u_sigma:         Optional[Vec3]
-    p:               Optional[Vec3]
-    p_sigma:         Optional[Vec3]
+    u:               Optional[Vec3[float]]
+    u_sigma:         Optional[Vec3[float]]
+    p:               Optional[Vec3[float]]
+    p_sigma:         Optional[Vec3[float]]
 
 @dataclass
 class Log:
     timesteps: list[Timestep]
+
+    def to_df(self) -> pd.DataFrame:
+        return pd.DataFrame(self.timesteps)
 
 
 def read_log(log_path: Path) -> str:
@@ -51,7 +51,7 @@ def parse_log(log: str) -> Log:
         tok = any_char_until(string(token)) >> string(token)
         flt = whitespace >> floating
 
-        return seq(tok, flt).map(tuple).desc(token)
+        return seq(tok, flt).desc(token)
 
     def vector_element(name: str, token: str) -> Parser:
         tok = any_char_until(string(token)) >> string(token)
@@ -59,8 +59,8 @@ def parse_log(log: str) -> Log:
 
         return (tok >> vec).optional().map(lambda v: (name, v)).desc(token)
 
-    ts_start    = (any_char_until(string('TIME_STEP')) >> string('TIME_STEP') >> whitespace >> integer).desc('ts_start')
-    ts_end      = (any_char_until(string('TIME_STEP_END')).concat() << string('TIME_STEP_END') << whitespace).desc('ts_end')
+    ts_start    = (any_char_until(string('TIME_STEP'), consume_other=True) >> whitespace >> integer).desc('ts_start')
+    ts_end      = any_char_until(string('TIME_STEP_END'), consume_other=True).concat().desc('ts_end')
     ts_section  = (ts_start >> ts_end).desc('ts_section')
     ts_sections = ts_section.many().desc('ts_sections')
 
@@ -97,13 +97,14 @@ def parse_log(log: str) -> Log:
 
 
 if __name__ == "__main__":
-    test_path = src_root() / 'test' / 'temp'
+    test_path = project_root() / 'output' / 'temp'
     log_path  = test_path / 'bto.log'
-    log_raw       = read_log(log_path)
-    log    = parse_log(log_raw)
+    log_raw   = read_log(log_path)
+    log       = parse_log(log_raw)
+    df        = log.to_df()
 
-    print(log)
-    print(len(log.timesteps))
+    print(df)
+    print(len(df))
 
     # log_info = read_log(log_path)
     # disp_re = r'<u>\s*=\s*(.*?)\s+(.*?)\s+(.*?)$'

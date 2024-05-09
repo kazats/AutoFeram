@@ -1,3 +1,4 @@
+from src.lib.common import Vec7
 from src.lib.Config import Material
 
 
@@ -18,6 +19,6 @@ BTO = Material(
     P_alpha     = 78.9866142426818,
     P_gamma     = -115.484148812672,
     P_kappa2    = 8.53400622096412,
-    j           = '-2.08403 -1.12904  0.68946 -0.61134  0.00000  0.27690  0.00000',
+    j           = Vec7(-2.08403, -1.12904, 0.68946, -0.61134, 0.00000, 0.27690, 0.00000),
     epsilon_inf = 6.86915,
 )
