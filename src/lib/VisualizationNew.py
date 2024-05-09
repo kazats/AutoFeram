@@ -24,10 +24,10 @@ class Timestep:
     H_Nose_Poincare: float
     s_Nose:          float
     pi_Nose:         float
-    u:               Optional[tuple[float, float, float]] = None
-    u_sigma:         Optional[tuple[float, float, float]] = None
-    p:               Optional[tuple[float, float, float]] = None
-    p_sigma:         Optional[tuple[float, float, float]] = None
+    u:               Optional[tuple[float, float, float]]
+    u_sigma:         Optional[tuple[float, float, float]]
+    p:               Optional[tuple[float, float, float]]
+    p_sigma:         Optional[tuple[float, float, float]]
 
 # @dataclass
 # class Log:
