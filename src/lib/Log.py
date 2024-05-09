@@ -1,4 +1,3 @@
-# import pandas as pd
 from parsy import Parser, seq, any_char, whitespace, string, regex
 from dataclasses import dataclass
 from pathlib import Path
