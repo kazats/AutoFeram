@@ -4,6 +4,7 @@ tags
 bin/
 lib/
 lib64
+output/
 share/man
 pyvenv.cfg
 include/
