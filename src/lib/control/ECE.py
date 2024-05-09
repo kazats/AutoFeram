@@ -14,7 +14,6 @@ from src.lib.Config import *
 from src.lib.Util import project_root
 from src.lib.Log import *
 from src.lib.Operations import *
-from src.lib.VisualizationNew import *
 
 
 @dataclass
