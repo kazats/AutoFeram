@@ -11,7 +11,7 @@ from src.lib.common import BoltzmannConst, Vec3
 from src.lib.control import ECE
 from src.lib.materials.BTO import BTO
 from src.lib.Config import *
-from src.lib.Util import project_root
+from src.lib.Util import feram_path, project_root
 from src.lib.Log import *
 from src.lib.Operations import *
 
@@ -95,8 +95,8 @@ def post_process(log: Log, config: ECEConfig) -> pd.DataFrame:
 
 if __name__ == "__main__":
     SIM_NAME = 'bto'
-    # FERAM_BIN = Path.home() / 'Code' / 'git' / 'AutoFeram' / 'feram-0.26.04' / 'build_20240401' / 'src' / 'feram'   # FERAM_BIN = Path('feram')
-    FERAM_BIN = Path(cast(str, shutil.which('feram')))
+    CUSTOM_FERAM_BIN = Path.home() / 'Code' / 'git' / 'AutoFeram' / 'feram-0.26.04' / 'build_20240401' / 'src' / 'feram'   # FERAM_BIN = Path('feram')
+    FERAM_BIN = feram_path(CUSTOM_FERAM_BIN)
 
 
     working_dir = project_root() / 'output' / 'ece'
