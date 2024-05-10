@@ -1,7 +1,7 @@
 import colors
-from result import is_err
 from pathlib import Path
 from dataclasses import dataclass
+from functools import reduce
 from itertools import zip_longest
 from typing import NamedTuple
 
@@ -19,9 +19,7 @@ class ECERunner(NamedTuple):
     feram_bin: Path
     working_dir: Path
 
-
-@dataclass
-class ECEConfig:
+class ECEConfig(NamedTuple):
     material:      Material
     common:        SetupDict
     step1_preNPT:  list[Setup]
@@ -30,11 +28,7 @@ class ECEConfig:
     step4_postNPE: list[Setup]
 
 
-def run(
-    runner: ECERunner,
-    ece_config: ECEConfig
-    ):
-    sim_name, feram_bin, working_dir = runner
+def run(runner: ECERunner, ece_config: ECEConfig):
 
     def setup_with(setups: list[Setup]) -> FeramConfig:
         return FeramConfig(
@@ -42,8 +36,7 @@ def run(
             material = ece_config.material
         )
 
-    # def feram_file_in_dir(dir: Path) -> Path:
-    #     return dir / f'{sim_name}.feram'
+    sim_name, feram_bin, working_dir = runner
 
     steps = [
         (working_dir / '1_preNPT',  ece_config.step1_preNPT),
@@ -52,37 +45,41 @@ def run(
         (working_dir / '4_postNPE', ece_config.step4_postNPE)
     ]
 
-    res = OperationSequence([
+    create_dirs = OperationSequence([
         MkDirs(DirOut(working_dir)),
         *[MkDirs(DirOut(dir)) for dir, _ in steps]
-    ]).run()
+    ])
 
-    if is_err(res):
-        return res
-
-
-    for (dir, setups), (dir_next, _) in zip_longest(steps, steps[1:], fillvalue=(Any, Any)):
+    def step(setups: list[Setup], dir_cur: Path, dir_next: Path) -> OperationSequence:
         config          = setup_with(setups)
-        feram_file      = dir / f'{sim_name}.feram'
-        last_coord_file = dir / f'{sim_name}.{config.last_coord()}.coord'
-        maybe_copy      = Copy(FileIn(last_coord_file),
-                               FileOut(dir_next / f'{sim_name}.restart'))\
-                            if dir_next is not Any else Empty()
+        feram_file      = dir_cur / f'{sim_name}.feram'
+        last_coord_file = dir_cur / f'{sim_name}.{config.last_coord()}.coord'
+        copy_restart    = Copy(FileIn(last_coord_file),
+                               FileOut(dir_next / f'{sim_name}.restart')) if dir_next is not Any else Empty()
 
-        res = OperationSequence([
+        return OperationSequence([
             Write(FileOut(feram_file),
                   config.generate_feram_file),
             WithDir(DirIn(working_dir),
-                    DirIn(dir),
+                    DirIn(dir_cur),
                     Feram(Exec(feram_bin),
                           FileIn(feram_file))),
-            maybe_copy
-        ]).run()
+            copy_restart
+        ])
 
-        if is_err(res):
-            return res
+    def reducer(acc: OperationSequence, next_step) -> OperationSequence:
+        (dir_cur, setups), (dir_next, _) = next_step
+        return acc + step(setups, dir_cur, dir_next)
 
-    return Ok('Measure ECE: success')
+    step_zip  = zip_longest(steps, steps[1:], fillvalue=(Any, Any))
+    run_steps = reduce(reducer, step_zip, OperationSequence())
+
+    all = OperationSequence([
+        *create_dirs,
+        *run_steps
+    ])
+
+    return all.run().and_then(lambda _: Ok('Measure ECE: success'))
 
 
 def post_process(log: Log, config: ECEConfig) -> pd.DataFrame:
@@ -105,6 +102,12 @@ if __name__ == "__main__":
     efield_initial = Vec3(0.001, 0, 0)
     efield_final   = Vec3[float](0, 0, 0)
     efield_static  = EFieldStatic(external_E_field = efield_initial)
+
+    runner = ECERunner(
+        sim_name    = 'bto',
+        feram_bin   = feram_path(CUSTOM_FERAM_BIN),
+        working_dir = project_root() / 'output' / 'ece',
+    )
 
     config = ECE.ECEConfig(
         material = material,
@@ -153,12 +156,6 @@ if __name__ == "__main__":
             ),
             efield_static
         ]
-    )
-
-    runner = ECERunner(
-        sim_name    = 'bto',
-        feram_bin   = feram_path(CUSTOM_FERAM_BIN),
-        working_dir = project_root() / 'output' / 'ece',
     )
 
     res = run(runner, config)
