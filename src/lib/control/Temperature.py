@@ -118,10 +118,10 @@ if __name__ == "__main__":
     print(color_res)
 
     # post processing
-    log_path  = test_path / 'bto.log'
-    log_raw   = read_log(log_path)
-    log       = parse_log(log_raw)
-    res       = post_process(log, config)
+    log_path = test_path / 'bto.log'
+    log_raw  = read_log(log_path)
+    log      = parse_log(log_raw)
+    res      = post_process(log, config)
 
     print(res)
     # print(len(res))
