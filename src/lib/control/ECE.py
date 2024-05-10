@@ -67,6 +67,7 @@ def run(
                             if dir_next is not Any else Empty()
 
         res = OperationSequence([
+            MkDirs(DirOut(working_dir)),
             Write(FileOut(feram_file),
                   config.generate_feram_file),
             WithDir(DirIn(working_dir),
@@ -94,13 +95,7 @@ def post_process(log: Log, config: ECEConfig) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    SIM_NAME = 'bto'
     CUSTOM_FERAM_BIN = Path.home() / 'Code' / 'git' / 'AutoFeram' / 'feram-0.26.04' / 'build_20240401' / 'src' / 'feram'   # FERAM_BIN = Path('feram')
-    FERAM_BIN = feram_path(CUSTOM_FERAM_BIN)
-
-
-    working_dir = project_root() / 'output' / 'ece'
-    os.makedirs(working_dir, exist_ok=True)
 
     material       = BTO
     temperature    = 200
@@ -159,15 +154,12 @@ if __name__ == "__main__":
     )
 
     runner = ECERunner(
-        sim_name    = SIM_NAME,
-        feram_bin   = FERAM_BIN,
-        working_dir = working_dir,
+        sim_name    = 'bto',
+        feram_bin   = feram_path(CUSTOM_FERAM_BIN),
+        working_dir = project_root() / 'output' / 'ece',
     )
 
-    res = run(
-        runner,
-        config
-    )
+    res = run(runner, config)
 
     color_res = colors.yellow(res) if res.is_ok() else colors.red(res)
     print(color_res)
