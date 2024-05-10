@@ -127,13 +127,13 @@ class WithDir(Operation):
     def __init__(self, cwd: DirIn, dir: DirIn, operation: Operation) -> None:
         super().__init__(lambda: self.do(cwd, dir, operation))
 
-    def do(self, cwd: DirIn, dir: DirIn, operation: Operation) -> Result[Any, str]:
+    def do(self, return_dir: DirIn, working_dir: DirIn, operation: Operation) -> Result[Any, str]:
         return do(
             Ok(dir_from)
-            for to_dir in Cd(dir).run()
+            for to_dir in Cd(working_dir).run()
             for res in operation.run()
-            for dir_from in Cd(cwd).run()
-        ).map(lambda _: f'WithDir: {relative_to_cwd(dir.path)}').map_err(lambda x: f'WithDir: {str(x)}')
+            for dir_from in Cd(return_dir).run()
+        ).map(lambda _: f'WithDir: {relative_to_cwd(working_dir.path)}').map_err(lambda x: f'WithDir: {str(x)}')
 
 
 class Remove(Operation):
@@ -244,13 +244,19 @@ class Feram(Operation):
 
 
 class OperationSequence:
-    def __init__(self, operations: list[Operation]) -> None:
+    def __init__(self, operations: list[Operation] = []) -> None:
         self.operations = operations
 
     def run(self) -> Result[Any, str]:
         return reduce(lambda op, next_op: op.and_then(lambda _: next_op.run()),
                       self.operations[1:],
                       self.operations[0].run())
+
+    def __iter__(self):
+        return iter(self.operations)
+
+    def __add__(self, other):
+        return OperationSequence(self.operations + other.operations)
 
 
 if __name__ == "__main__":
