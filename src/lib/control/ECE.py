@@ -1,6 +1,5 @@
 import colors
 from pathlib import Path
-from dataclasses import dataclass
 from functools import reduce
 from itertools import zip_longest
 from typing import NamedTuple
