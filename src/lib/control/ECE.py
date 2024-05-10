@@ -1,11 +1,9 @@
-import os
-import shutil
 import colors
 from result import is_err
 from pathlib import Path
 from dataclasses import dataclass
 from itertools import zip_longest
-from typing import NamedTuple, cast
+from typing import NamedTuple
 
 from src.lib.common import BoltzmannConst, Vec3
 from src.lib.control import ECE
@@ -44,6 +42,9 @@ def run(
             material = ece_config.material
         )
 
+    # def feram_file_in_dir(dir: Path) -> Path:
+    #     return dir / f'{sim_name}.feram'
+
     steps = [
         (working_dir / '1_preNPT',  ece_config.step1_preNPT),
         (working_dir / '2_preNPE',  ece_config.step2_preNPE),
@@ -51,8 +52,10 @@ def run(
         (working_dir / '4_postNPE', ece_config.step4_postNPE)
     ]
 
-    res = OperationSequence([MkDirs(DirOut(dir))
-        for dir, _ in steps]).run()
+    res = OperationSequence([
+        MkDirs(DirOut(working_dir)),
+        *[MkDirs(DirOut(dir)) for dir, _ in steps]
+    ]).run()
 
     if is_err(res):
         return res
@@ -67,7 +70,6 @@ def run(
                             if dir_next is not Any else Empty()
 
         res = OperationSequence([
-            MkDirs(DirOut(working_dir)),
             Write(FileOut(feram_file),
                   config.generate_feram_file),
             WithDir(DirIn(working_dir),
