@@ -5,9 +5,9 @@ from result import is_err
 from pathlib import Path
 from dataclasses import dataclass
 from itertools import zip_longest
-from typing import cast
+from typing import NamedTuple, cast
 
-from src.lib.common import Vec3
+from src.lib.common import BoltzmannConst, Vec3
 from src.lib.control import ECE
 from src.lib.materials.BTO import BTO
 from src.lib.Config import *
@@ -16,9 +16,16 @@ from src.lib.Log import *
 from src.lib.Operations import *
 
 
+class ECERunner(NamedTuple):
+    sim_name: str
+    feram_bin: Path
+    working_dir: Path
+
+
 @dataclass
 class ECEConfig:
     material:      Material
+    common:        SetupDict
     step1_preNPT:  list[Setup]
     step2_preNPE:  list[Setup]
     step3_rampNPE: list[Setup]
@@ -26,24 +33,22 @@ class ECEConfig:
 
 
 def run(
-    sim_name:  str,
-    feram_bin: Path,
-    dst: Path,
+    runner: ECERunner,
     ece_config: ECEConfig
     ):
-    """Electrocaloric Effect"""
+    sim_name, feram_bin, working_dir = runner
 
     def setup_with(setups: list[Setup]) -> FeramConfig:
         return FeramConfig(
-            setup    = merge_setups(setups),
+            setup    = merge_setups(setups) | ece_config.common,
             material = ece_config.material
         )
 
     steps = [
-        (dst / '1_preNPT',  ece_config.step1_preNPT),
-        (dst / '2_preNPE',  ece_config.step2_preNPE),
-        (dst / '3_rampNPE', ece_config.step3_rampNPE),
-        (dst / '4_postNPE', ece_config.step4_postNPE)
+        (working_dir / '1_preNPT',  ece_config.step1_preNPT),
+        (working_dir / '2_preNPE',  ece_config.step2_preNPE),
+        (working_dir / '3_rampNPE', ece_config.step3_rampNPE),
+        (working_dir / '4_postNPE', ece_config.step4_postNPE)
     ]
 
     res = OperationSequence([MkDirs(DirOut(dir))
@@ -64,7 +69,7 @@ def run(
         res = OperationSequence([
             Write(FileOut(feram_file),
                   config.generate_feram_file),
-            WithDir(DirIn(dst),
+            WithDir(DirIn(working_dir),
                     DirIn(dir),
                     Feram(Exec(feram_bin),
                           FileIn(feram_file))),
@@ -77,83 +82,91 @@ def run(
     return Ok('Measure ECE: success')
 
 
+def post_process(log: Log, config: ECEConfig) -> pd.DataFrame:
+    dt = config.step1_preNPT[0].to_dict()['dt']
+
+    df = pd.DataFrame(log.timesteps)
+    df['kelvin'] = df.dipo_kinetic / (1.5 * BoltzmannConst)
+    df['time_ps'] = pd.Series(map(lambda x: x * dt, range(len(df))))
+    # df['time_ps'] = pd.Series(accumulate(range(df.shape[0]), lambda x, _: x + dt))
+
+    return df
+
+
 if __name__ == "__main__":
     SIM_NAME = 'bto'
     # FERAM_BIN = Path.home() / 'Code' / 'git' / 'AutoFeram' / 'feram-0.26.04' / 'build_20240401' / 'src' / 'feram'   # FERAM_BIN = Path('feram')
     FERAM_BIN = Path(cast(str, shutil.which('feram')))
 
 
-    out_path = project_root() / 'output' / 'ece'
-    os.makedirs(out_path, exist_ok=True)
+    working_dir = project_root() / 'output' / 'ece'
+    os.makedirs(working_dir, exist_ok=True)
 
     material       = BTO
     temperature    = 200
     size           = Vec3(2, 2, 2)
     efield_initial = Vec3(0.001, 0, 0)
     efield_final   = Vec3[float](0, 0, 0)
+    efield_static  = EFieldStatic(external_E_field = efield_initial)
 
-    res = ECE.run(
-        SIM_NAME,
-        FERAM_BIN,
-        out_path,
-        ECE.ECEConfig(
-            material = material,
-            step1_preNPT = [
-                General(
-                    method       = Method.MD,
-                    kelvin       = temperature,
-                    L            = size,
-                    n_thermalize = 0,
-                    n_average    = 8, #0000
-                    n_coord_freq = 8, #0000
-                ),
-                EFieldStatic(
-                    external_E_field = efield_initial
-                )
-            ],
-            step2_preNPE = [
-                General(
-                    method       = Method.LF,
-                    kelvin       = temperature,
-                    L            = size,
-                    n_thermalize = 0,
-                    n_average    = 12, #0000
-                    n_coord_freq = 12, #0000
-                ),
-                EFieldStatic(
-                    external_E_field = efield_initial
-                )
-            ],
-            step3_rampNPE = [
-                General(
-                    method       = Method.LF,
-                    kelvin       = temperature,
-                    L            = size,
-                    n_thermalize = 10, #0000
-                    n_average    = 0,
-                    n_coord_freq = 10, #0000
-                ),
-                EFieldDynamic(
-                    n_hl_freq        = 1, #00
-                    n_E_wave_period  = 4, #100000,
-                    E_wave_type      = EWaveType.RampOff,
-                    external_E_field = efield_initial
-                )
-            ],
-            step4_postNPE = [
-                General(
-                    method       = Method.LF,
-                    kelvin       = temperature,
-                    L            = size,
-                    n_thermalize = 0,
-                    n_average    = 18, #0000
-                    n_coord_freq = 18, #0000
-                ),
-                EFieldStatic(
-                    external_E_field = efield_final
-                )
-            ]
-        )
+    config = ECE.ECEConfig(
+        material = material,
+        common = {
+            'L':      size,
+            'kelvin': temperature,
+        },
+        step1_preNPT = [
+            General(
+                method       = Method.MD,
+                n_thermalize = 0,
+                n_average    = 8, #0000
+                n_coord_freq = 8, #0000
+            ),
+            efield_static
+        ],
+        step2_preNPE = [
+            General(
+                method       = Method.LF,
+                n_thermalize = 0,
+                n_average    = 12, #0000
+                n_coord_freq = 12, #0000
+            ),
+            efield_static
+        ],
+        step3_rampNPE = [
+            General(
+                method       = Method.LF,
+                n_thermalize = 10, #0000
+                n_average    = 0,
+                n_coord_freq = 10, #0000
+            ),
+            EFieldDynamic(
+                n_hl_freq        = 1, #00
+                n_E_wave_period  = 4, #100000,
+                E_wave_type      = EWaveType.RampOff,
+                external_E_field = efield_initial
+            )
+        ],
+        step4_postNPE = [
+            General(
+                method       = Method.LF,
+                n_thermalize = 0,
+                n_average    = 18, #0000
+                n_coord_freq = 18, #0000
+            ),
+            efield_static
+        ]
+    )
+
+    runner = ECERunner(
+        sim_name    = SIM_NAME,
+        feram_bin   = FERAM_BIN,
+        working_dir = working_dir,
+    )
+
+    res = run(
+        runner,
+        config
     )
 
     color_res = colors.yellow(res) if res.is_ok() else colors.red(res)
