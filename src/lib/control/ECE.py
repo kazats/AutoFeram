@@ -96,6 +96,8 @@ def post_process(runner: ECERunner, config: ECEConfig) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
+    pd.options.mode.copy_on_write = True
+
     CUSTOM_FERAM_BIN = Path.home() / 'Code' / 'git' / 'AutoFeram' / 'feram-0.26.04' / 'build_20240401' / 'src' / 'feram'
 
     material       = BTO
