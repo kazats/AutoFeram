@@ -22,9 +22,9 @@ class Timestep:
     inho_coupling:   float
     inho_modulation: float
     total_energy:    float
-    H_Nose_Poincare: float
-    s_Nose:          float
-    pi_Nose:         float
+    H_Nose_Poincare: Optional[float]
+    s_Nose:          Optional[float]
+    pi_Nose:         Optional[float]
     u:               Optional[Vec3[float]]
     u_sigma:         Optional[Vec3[float]]
     p:               Optional[Vec3[float]]
@@ -51,7 +51,7 @@ def parse_log(log: str) -> Log:
         tok = any_char_until(string(token)) >> string(token)
         flt = whitespace >> floating
 
-        return seq(tok, flt).desc(token)
+        return (tok >> flt).optional().map(lambda v: (token, v)).desc(token)
 
     def vector_element(name: str, token: str) -> Parser:
         tok = any_char_until(string(token)) >> string(token)
