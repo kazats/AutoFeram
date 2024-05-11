@@ -78,7 +78,6 @@ def post_process(runner: ECERunner, config: ECEConfig) -> pd.DataFrame:
         log = parse_log(read_log(working_dir / step_dir / log_name))
         df  = pd.DataFrame(log.time_steps)
 
-        df['kelvin'] = df.dipo_kinetic / (1.5 * BoltzmannConst)
         df['dt_e3'] = setup['dt'] * 1000
 
         return df
@@ -91,6 +90,7 @@ def post_process(runner: ECERunner, config: ECEConfig) -> pd.DataFrame:
                            initial=0)
 
     merged_df['time_fs'] = pd.Series(time)
+    merged_df['kelvin']  = merged_df.dipo_kinetic / (1.5 * BoltzmannConst)
 
     return merged_df
 
@@ -172,7 +172,7 @@ if __name__ == "__main__":
     # post processing
     res = post_process(runner, config)
 
-    write_path = runner.working_dir / 'ece.csv'
-    res.to_csv(write_path)
+    write_path = runner.working_dir / 'ece.pickle'
+    res.to_pickle(write_path)
 
     print(res)
