@@ -79,6 +79,7 @@ def post_process(runner: ECERunner, config: ECEConfig) -> pd.DataFrame:
         log = parse_log(read_log(working_dir / step_dir / log_name))
         df  = pd.DataFrame(log.time_steps)
 
+        df['step']  = step_dir
         df['dt_e3'] = setup['dt'] * 1000
 
         return df
