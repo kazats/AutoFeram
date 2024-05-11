@@ -60,10 +60,12 @@ def parse_log(log: str) -> Log:
 
         return (tok >> vec).optional().map(lambda v: (name, v)).desc(token)
 
-    ts_start    = (any_char_until(string('TIME_STEP'), consume_other=True) >> whitespace >> integer).desc('ts_start')
+    # ts_start    = (any_char_until(string('TIME_STEP'), consume_other=True) >> whitespace >> integer).desc('ts_start')
+    ts_start    = any_char_until(string('TIME_STEP')).desc('ts_start')
     ts_end      = any_char_until(string('TIME_STEP_END'), consume_other=True).concat().desc('ts_end')
     ts_section  = (ts_start >> ts_end).desc('ts_section')
     ts_sections = ts_section.many().desc('ts_sections')
+    time_step   = (string('TIME_STEP') >> whitespace >> integer).map(lambda v: ('time_step', v)).desc('time_step')
 
     def parse_ts_section(ts_section: str) -> TimeStep:
         ts_fields = seq(

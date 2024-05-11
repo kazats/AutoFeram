@@ -172,5 +172,7 @@ if __name__ == "__main__":
     # post processing
     res = post_process(runner, config)
 
+    write_path = runner.working_dir / 'ece.csv'
+    res.to_csv(write_path)
+
     print(res)
-    # print(len(res))
