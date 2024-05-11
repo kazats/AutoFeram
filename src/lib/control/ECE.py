@@ -19,15 +19,12 @@ class ECERunner(NamedTuple):
     working_dir: Path
 
 class ECEConfig(NamedTuple):
-    material:      Material
-    common:        SetupDict
-    step1_preNPT:  list[Setup]
-    step2_preNPE:  list[Setup]
-    step3_rampNPE: list[Setup]
-    step4_postNPE: list[Setup]
+    material: Material
+    common:   SetupDict
+    steps:    dict[str, list[Setup]]
 
 
-def run(runner: ECERunner, ece_config: ECEConfig):
+def run(runner: ECERunner, ece_config: ECEConfig) -> Result[Any, str]:
 
     def setup_with(setups: list[Setup]) -> FeramConfig:
         return FeramConfig(
@@ -37,16 +34,9 @@ def run(runner: ECERunner, ece_config: ECEConfig):
 
     sim_name, feram_bin, working_dir = runner
 
-    steps = [
-        (working_dir / '1_preNPT',  ece_config.step1_preNPT),
-        (working_dir / '2_preNPE',  ece_config.step2_preNPE),
-        (working_dir / '3_rampNPE', ece_config.step3_rampNPE),
-        (working_dir / '4_postNPE', ece_config.step4_postNPE)
-    ]
-
     create_dirs = OperationSequence([
         MkDirs(DirOut(working_dir)),
-        *[MkDirs(DirOut(dir)) for dir, _ in steps]
+        *[MkDirs(DirOut(working_dir / step_dir)) for step_dir in ece_config.steps.keys()]
     ])
 
     def step(setups: list[Setup], dir_cur: Path, dir_next: Path) -> OperationSequence:
@@ -70,6 +60,7 @@ def run(runner: ECERunner, ece_config: ECEConfig):
         (dir_cur, setups), (dir_next, _) = next_step
         return acc + step(setups, dir_cur, dir_next)
 
+    steps     = [(working_dir / step_dir, setups) for step_dir, setups in ece_config.steps.items()]
     step_zip  = zip_longest(steps, steps[1:], fillvalue=(Any, Any))
     run_steps = reduce(reducer, step_zip, OperationSequence())
 
@@ -81,7 +72,8 @@ def run(runner: ECERunner, ece_config: ECEConfig):
     return all.run().and_then(lambda _: Ok('Measure ECE: success'))
 
 
-def post_process(log: Log, config: ECEConfig) -> pd.DataFrame:
+def post_process(runner: ECERunner, config: ECEConfig) -> pd.DataFrame:
+    sim_name, feram_bin, working_dir = runner
     dt = config.step1_preNPT[0].to_dict()['dt']
 
     df = pd.DataFrame(log.timesteps)
@@ -93,7 +85,7 @@ def post_process(log: Log, config: ECEConfig) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    CUSTOM_FERAM_BIN = Path.home() / 'Code' / 'git' / 'AutoFeram' / 'feram-0.26.04' / 'build_20240401' / 'src' / 'feram'   # FERAM_BIN = Path('feram')
+    CUSTOM_FERAM_BIN = Path.home() / 'Code' / 'git' / 'AutoFeram' / 'feram-0.26.04' / 'build_20240401' / 'src' / 'feram'
 
     material       = BTO
     temperature    = 200
@@ -114,48 +106,49 @@ if __name__ == "__main__":
             'L':      size,
             'kelvin': temperature,
         },
-        step1_preNPT = [
-            General(
-                method       = Method.MD,
-                n_thermalize = 0,
-                n_average    = 8, #0000
-                n_coord_freq = 8, #0000
-            ),
-            efield_static
-        ],
-        step2_preNPE = [
-            General(
-                method       = Method.LF,
-                n_thermalize = 0,
-                n_average    = 12, #0000
-                n_coord_freq = 12, #0000
-            ),
-            efield_static
-        ],
-        step3_rampNPE = [
-            General(
-                method       = Method.LF,
-                n_thermalize = 10, #0000
-                n_average    = 0,
-                n_coord_freq = 10, #0000
-            ),
-            EFieldDynamic(
-                n_hl_freq        = 1, #00
-                n_E_wave_period  = 4, #100000,
-                E_wave_type      = EWaveType.RampOff,
-                external_E_field = efield_initial
-            )
-        ],
-        step4_postNPE = [
-            General(
-                method       = Method.LF,
-                n_thermalize = 0,
-                n_average    = 18, #0000
-                n_coord_freq = 18, #0000
-            ),
-            efield_static
-        ]
-    )
+        steps = {
+            '1_preNPT': [
+                General(
+                    method       = Method.MD,
+                    n_thermalize = 0,
+                    n_average    = 8, #0000
+                    n_coord_freq = 8, #0000
+                ),
+                efield_static
+            ],
+            '2_preNPE': [
+                General(
+                    method       = Method.LF,
+                    n_thermalize = 0,
+                    n_average    = 12, #0000
+                    n_coord_freq = 12, #0000
+                ),
+                efield_static
+            ],
+            '3_rampNPE': [
+                General(
+                    method       = Method.LF,
+                    n_thermalize = 10, #0000
+                    n_average    = 0,
+                    n_coord_freq = 10, #0000
+                ),
+                EFieldDynamic(
+                    n_hl_freq        = 1, #00
+                    n_E_wave_period  = 4, #100000,
+                    E_wave_type      = EWaveType.RampOff,
+                    external_E_field = efield_initial
+                )
+            ],
+            '4_postNPE': [
+                General(
+                    method       = Method.LF,
+                    n_thermalize = 0,
+                    n_average    = 18, #0000
+                    n_coord_freq = 18, #0000
+                ),
+                efield_static
+            ]
+        })
 
     res = run(runner, config)
 
