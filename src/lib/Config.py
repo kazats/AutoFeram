@@ -1,8 +1,8 @@
-from collections.abc import Generator
+from functools import reduce
 from dataclasses import dataclass, asdict
 from enum import StrEnum
+from collections.abc import Generator, Sequence, Mapping
 from typing import Any, TypeAlias
-from functools import reduce
 
 from src.lib.common import Vec3, Vec7
 
@@ -20,7 +20,7 @@ class Structure(StrEnum):
 
 @dataclass
 class Setup:
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 @dataclass
@@ -72,7 +72,7 @@ class EFieldDynamic(Setup):
     external_E_field: Vec3[float] = Vec3(0.00, 0.00, 0.00)
 
 
-def merge_setups(setups: list[Setup]) -> dict[str, Any]:
+def merge_setups(setups: Sequence[Setup]) -> dict[str, Any]:
     dict_setups = map(lambda s: s.to_dict(), setups)
     return reduce(lambda acc, d: acc | d, dict_setups)
 
@@ -107,12 +107,12 @@ class SolidSolution(Material):
 
 @dataclass
 class PolarizationParameters:
-    a0:     float
+    a0: float
     Z_star: float
     factor: float
 
 
-SetupDict: TypeAlias = dict[str, Any]
+SetupDict: TypeAlias = Mapping[str, Any]
 
 @dataclass
 class FeramConfig:

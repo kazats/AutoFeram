@@ -2,6 +2,7 @@ import pandas as pd
 from parsy import Parser, seq, any_char, whitespace, string, regex
 from dataclasses import dataclass
 from pathlib import Path
+from collections.abc import Sequence
 from typing import Optional
 
 from src.lib.common import Vec3
@@ -34,7 +35,7 @@ class TimeStep:
 # TODO: parse config from log
 @dataclass
 class Log:
-    time_steps: list[TimeStep]
+    time_steps: Sequence[TimeStep]
 
     def to_df(self) -> pd.DataFrame:
         return pd.DataFrame(self.time_steps)

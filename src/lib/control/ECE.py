@@ -2,6 +2,7 @@ import colors
 from pathlib import Path
 from functools import reduce
 from itertools import accumulate, zip_longest
+from collections.abc import Mapping
 from typing import NamedTuple
 
 from src.lib.common import BoltzmannConst, Vec3
@@ -19,7 +20,7 @@ class ECERunner(NamedTuple):
 
 class ECEConfig(NamedTuple):
     material: Material
-    steps:    dict[str, SetupDict]
+    steps:    Mapping[str, SetupDict]
 
 
 def run(runner: ECERunner, ece_config: ECEConfig) -> Result[Any, str]:

@@ -4,10 +4,10 @@ import shutil
 import colors
 from functools import reduce
 from pathlib import Path
-from collections.abc import Callable
-from typing import Any, Self, TypeAlias, cast
 from enum import Enum
 from result import Result, Ok, Err, as_result, do
+from collections.abc import Callable, Sequence
+from typing import Any, Self, TypeAlias, cast
 
 from src.lib.Util import src_root
 
@@ -48,7 +48,7 @@ class FilePath():
     def __init__(self,
                  path: Path,
                  param_type: FilePathType,
-                 preconditions: list[Precondition]) -> None:
+                 preconditions: Sequence[Precondition]) -> None:
         self.path: Path = path
         self.param_type: FilePathType = param_type
         self.preconditions = preconditions
@@ -56,7 +56,7 @@ class FilePath():
     def __repr__(self) -> str:
         return str(relative_to_cwd(self.path))
 
-    def check_preconditions(self) -> Result[Self, list[str]]:
+    def check_preconditions(self) -> Result[Self, Sequence[str]]:
         checked = (cond(self.path) for cond in self.preconditions)
         failed = [x.unwrap_err() for x in checked if x.is_err()]
         if not failed:
@@ -66,21 +66,21 @@ class FilePath():
 
 
 class FileIn(FilePath):
-    def __init__(self, path: Path, preconditions: list[Precondition] = []) -> None:
+    def __init__(self, path: Path, preconditions: Sequence[Precondition] = []) -> None:
         super().__init__(path, FilePathType.FileIn, [file_exists, *preconditions])
 
 Exec: TypeAlias = FileIn
 
 class FileOut(FilePath):
-    def __init__(self, path: Path, preconditions: list[Precondition] = []) -> None:
+    def __init__(self, path: Path, preconditions: Sequence[Precondition] = []) -> None:
         super().__init__(path, FilePathType.FileOut, [*preconditions])
 
 class DirIn(FilePath):
-    def __init__(self, path: Path, preconditions: list[Precondition] = []) -> None:
+    def __init__(self, path: Path, preconditions: Sequence[Precondition] = []) -> None:
         super().__init__(path, FilePathType.DirIn, [dir_exists, *preconditions])
 
 class DirOut(FilePath):
-    def __init__(self, path: Path, preconditions: list[Precondition] = []) -> None:
+    def __init__(self, path: Path, preconditions: Sequence[Precondition] = []) -> None:
         super().__init__(path, FilePathType.DirOut, [*preconditions])
 
 
@@ -244,7 +244,7 @@ class Feram(Operation):
 
 
 class OperationSequence:
-    def __init__(self, operations: list[Operation] = []) -> None:
+    def __init__(self, operations: Sequence[Operation] = []) -> None:
         self.operations = operations
 
     def run(self) -> Result[Any, str]:
@@ -269,7 +269,7 @@ if __name__ == "__main__":
     test_file = test_path / 'test'
     test_dir  = test_path / 'dir'
 
-    operations: list[Operation] = [
+    operations: Sequence[Operation] = [
         MkDirs(DirOut(test_dir)),
         WithDir(DirIn(test_path), DirIn(test_dir),
                 Append(FileIn(test_file),
