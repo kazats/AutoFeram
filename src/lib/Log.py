@@ -31,6 +31,7 @@ class TimeStep:
     p:               Optional[Vec3[float]]
     p_sigma:         Optional[Vec3[float]]
 
+# TODO: parse config from log
 @dataclass
 class Log:
     time_steps: list[TimeStep]
