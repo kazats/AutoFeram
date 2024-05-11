@@ -2,7 +2,7 @@ from functools import reduce
 from dataclasses import dataclass, asdict
 from enum import StrEnum
 from collections.abc import Generator, Sequence, Mapping
-from typing import Any, TypeAlias
+from typing import Any, NamedTuple, TypeAlias
 
 from src.lib.common import Vec3, Vec7
 
@@ -105,8 +105,7 @@ class SolidSolution(Material):
     acoustic_mass_amu: float
 
 
-@dataclass
-class PolarizationParameters:
+class PolarizationParameters(NamedTuple):
     a0: float
     Z_star: float
     factor: float
