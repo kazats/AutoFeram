@@ -76,7 +76,7 @@ def post_process(runner: ECERunner, config: ECEConfig) -> pd.DataFrame:
 
     def mk_df(step_dir: str, setup: SetupDict) -> pd.DataFrame:
         log = parse_log(read_log(working_dir / step_dir / log_name))
-        df  = pd.DataFrame(log.timesteps)
+        df  = pd.DataFrame(log.time_steps)
 
         df['kelvin'] = df.dipo_kinetic / (1.5 * BoltzmannConst)
         df['dt_e3'] = setup['dt'] * 1000

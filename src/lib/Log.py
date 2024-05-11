@@ -9,7 +9,8 @@ from src.lib.Util import project_root
 
 
 @dataclass
-class Timestep:
+class TimeStep:
+    time_step:       int
     acou_kinetic:    float
     dipo_kinetic:    float
     short_range:     float
@@ -32,10 +33,10 @@ class Timestep:
 
 @dataclass
 class Log:
-    timesteps: list[Timestep]
+    time_steps: list[TimeStep]
 
     def to_df(self) -> pd.DataFrame:
-        return pd.DataFrame(self.timesteps)
+        return pd.DataFrame(self.time_steps)
 
 
 def read_log(log_path: Path) -> str:
@@ -64,8 +65,9 @@ def parse_log(log: str) -> Log:
     ts_section  = (ts_start >> ts_end).desc('ts_section')
     ts_sections = ts_section.many().desc('ts_sections')
 
-    def parse_ts_section(ts_section: str) -> Timestep:
+    def parse_ts_section(ts_section: str) -> TimeStep:
         ts_fields = seq(
+            time_step,
             *map(float_element,
                  ['acou_kinetic',
                   'dipo_kinetic',
@@ -89,7 +91,7 @@ def parse_log(log: str) -> Log:
                   ('p_sigma', 'sigma')])
         )
 
-        return ts_fields.combine_dict(Timestep).parse_partial(ts_section)[0]
+        return ts_fields.combine_dict(TimeStep).parse_partial(ts_section)[0]
 
     ts_sections_res = ts_sections.parse_partial(log)[0]
 

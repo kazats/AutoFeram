@@ -73,7 +73,7 @@ def run(
 def post_process(log: Log, config: FeramConfig) -> pd.DataFrame:
     dt = config.setup['dt']
 
-    df = pd.DataFrame(log.timesteps)
+    df = pd.DataFrame(log.time_steps)
     df['kelvin'] = df.dipo_kinetic / (1.5 * BoltzmannConst)
     df['time_ps'] = pd.Series(map(lambda x: x * dt, range(len(df))))
     # df['time_ps'] = pd.Series(accumulate(range(df.shape[0]), lambda x, _: x + dt))
