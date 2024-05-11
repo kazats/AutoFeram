@@ -90,7 +90,7 @@ def post_process(runner: ECERunner, config: ECEConfig) -> pd.DataFrame:
                            lambda acc, x: acc + x,
                            initial=0)
 
-    merged_df['time_ns'] = pd.Series(time)
+    merged_df['time_fs'] = pd.Series(time)
 
     return merged_df
 
