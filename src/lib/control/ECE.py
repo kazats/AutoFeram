@@ -1,11 +1,10 @@
 import colors
 from pathlib import Path
 from functools import reduce
-from itertools import zip_longest
+from itertools import accumulate, zip_longest
 from typing import NamedTuple
 
 from src.lib.common import BoltzmannConst, Vec3
-from src.lib.control import ECE
 from src.lib.materials.BTO import BTO
 from src.lib.Config import *
 from src.lib.Util import feram_path, project_root
@@ -15,32 +14,31 @@ from src.lib.Operations import *
 
 class ECERunner(NamedTuple):
     sim_name: str
-    feram_bin: Path
     working_dir: Path
+    feram_path: Path
 
 class ECEConfig(NamedTuple):
     material: Material
-    common:   SetupDict
-    steps:    dict[str, list[Setup]]
+    steps:    dict[str, SetupDict]
 
 
 def run(runner: ECERunner, ece_config: ECEConfig) -> Result[Any, str]:
 
-    def setup_with(setups: list[Setup]) -> FeramConfig:
+    def setup_with(setup: SetupDict) -> FeramConfig:
         return FeramConfig(
-            setup    = merge_setups(setups) | ece_config.common,
+            setup    = setup,
             material = ece_config.material
         )
 
-    sim_name, feram_bin, working_dir = runner
+    sim_name, working_dir, feram_bin = runner
 
     create_dirs = OperationSequence([
         MkDirs(DirOut(working_dir)),
         *[MkDirs(DirOut(working_dir / step_dir)) for step_dir in ece_config.steps.keys()]
     ])
 
-    def step(setups: list[Setup], dir_cur: Path, dir_next: Path) -> OperationSequence:
-        config          = setup_with(setups)
+    def step(setup: SetupDict, dir_cur: Path, dir_next: Path) -> OperationSequence:
+        config          = setup_with(setup)
         feram_file      = dir_cur / f'{sim_name}.feram'
         last_coord_file = dir_cur / f'{sim_name}.{config.last_coord()}.coord'
         copy_restart    = Copy(FileIn(last_coord_file),
@@ -73,41 +71,55 @@ def run(runner: ECERunner, ece_config: ECEConfig) -> Result[Any, str]:
 
 
 def post_process(runner: ECERunner, config: ECEConfig) -> pd.DataFrame:
-    sim_name, feram_bin, working_dir = runner
-    dt = config.step1_preNPT[0].to_dict()['dt']
+    sim_name, working_dir, _ = runner
+    log_name = f'{sim_name}.log'
 
-    df = pd.DataFrame(log.timesteps)
-    df['kelvin'] = df.dipo_kinetic / (1.5 * BoltzmannConst)
-    df['time_ps'] = pd.Series(map(lambda x: x * dt, range(len(df))))
-    # df['time_ps'] = pd.Series(accumulate(range(df.shape[0]), lambda x, _: x + dt))
+    def mk_df(step_dir: str, setup: SetupDict) -> pd.DataFrame:
+        log = parse_log(read_log(working_dir / step_dir / log_name))
+        df  = pd.DataFrame(log.timesteps)
 
-    return df
+        df['kelvin'] = df.dipo_kinetic / (1.5 * BoltzmannConst)
+        df['dt_e3'] = setup['dt'] * 1000
+
+        return df
+
+    dfs = [mk_df(step_dir, setup) for step_dir, setup in config.steps.items()]
+
+    merged_df = pd.concat(dfs, ignore_index=True)
+    time      = accumulate(merged_df['dt_e3'],
+                           lambda acc, x: acc + x,
+                           initial=0)
+
+    merged_df['time_ns'] = pd.Series(time)
+
+    return merged_df
 
 
 if __name__ == "__main__":
     CUSTOM_FERAM_BIN = Path.home() / 'Code' / 'git' / 'AutoFeram' / 'feram-0.26.04' / 'build_20240401' / 'src' / 'feram'
 
     material       = BTO
-    temperature    = 200
     size           = Vec3(2, 2, 2)
+    temperature    = 200
     efield_initial = Vec3(0.001, 0, 0)
     efield_final   = Vec3[float](0, 0, 0)
     efield_static  = EFieldStatic(external_E_field = efield_initial)
 
+    common = {
+        'L':      size,
+        'kelvin': temperature,
+    }
+
     runner = ECERunner(
         sim_name    = 'bto',
-        feram_bin   = feram_path(CUSTOM_FERAM_BIN),
+        feram_path  = feram_path(CUSTOM_FERAM_BIN),
         working_dir = project_root() / 'output' / 'ece',
     )
 
-    config = ECE.ECEConfig(
+    config = ECEConfig(
         material = material,
-        common = {
-            'L':      size,
-            'kelvin': temperature,
-        },
         steps = {
-            '1_preNPT': [
+            '1_preNPT': merge_setups([
                 General(
                     method       = Method.MD,
                     n_thermalize = 0,
@@ -115,8 +127,8 @@ if __name__ == "__main__":
                     n_coord_freq = 8, #0000
                 ),
                 efield_static
-            ],
-            '2_preNPE': [
+            ]) | common,
+            '2_preNPE': merge_setups([
                 General(
                     method       = Method.LF,
                     n_thermalize = 0,
@@ -124,8 +136,8 @@ if __name__ == "__main__":
                     n_coord_freq = 12, #0000
                 ),
                 efield_static
-            ],
-            '3_rampNPE': [
+            ]) | common,
+            '3_rampNPE': merge_setups([
                 General(
                     method       = Method.LF,
                     n_thermalize = 10, #0000
@@ -138,8 +150,8 @@ if __name__ == "__main__":
                     E_wave_type      = EWaveType.RampOff,
                     external_E_field = efield_initial
                 )
-            ],
-            '4_postNPE': [
+            ]) | common,
+            '4_postNPE': merge_setups([
                 General(
                     method       = Method.LF,
                     n_thermalize = 0,
@@ -147,7 +159,7 @@ if __name__ == "__main__":
                     n_coord_freq = 18, #0000
                 ),
                 efield_static
-            ]
+            ]) | common
         })
 
     res = run(runner, config)
@@ -156,10 +168,7 @@ if __name__ == "__main__":
     print(color_res)
 
     # post processing
-    # log_path  = out_path / 'bto.log'
-    # log_raw   = read_log(log_path)
-    # log       = parse_log(log_raw)
-    # res       = post_process(log, config)
+    res = post_process(runner, config)
 
-    # print(res)
+    print(res)
     # print(len(res))
