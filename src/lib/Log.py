@@ -1,4 +1,5 @@
 import pandas as pd
+import polars as pl
 from parsy import Parser, seq, any_char, whitespace, string, regex
 from pathlib import Path
 from collections.abc import Sequence
@@ -35,6 +36,9 @@ class Log(NamedTuple):
 
     def to_df(self) -> pd.DataFrame:
         return pd.DataFrame(self.time_steps)
+
+    def to_polars(self) -> pl.DataFrame:
+        return pl.DataFrame(self.time_steps)
 
 
 def read_log(log_path: Path) -> str:
@@ -103,7 +107,7 @@ if __name__ == "__main__":
     log_path  = test_path / 'bto.log'
     log_raw   = read_log(log_path)
     log       = parse_log(log_raw)
-    df        = log.to_df()
+    df        = log.to_polars()
 
     print(df)
     print(len(df))

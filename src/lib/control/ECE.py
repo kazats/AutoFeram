@@ -1,3 +1,4 @@
+import polars as pl
 import colors
 from pathlib import Path
 from functools import reduce
@@ -19,6 +20,7 @@ class ECERunner(NamedTuple):
     feram_path: Path
 
 class ECEConfig(NamedTuple):
+    # (n_thermalize + n_average) % n_coord_freq must == 0
     material: Material
     steps:    Mapping[str, SetupDict]
 
@@ -71,35 +73,35 @@ def run(runner: ECERunner, ece_config: ECEConfig) -> Result[Any, str]:
     return all.run().and_then(lambda _: Ok('Measure ECE: success'))
 
 
-def post_process(runner: ECERunner, config: ECEConfig) -> pd.DataFrame:
+def post_process(runner: ECERunner, config: ECEConfig) -> pl.DataFrame:
     sim_name, working_dir, _ = runner
     log_name = f'{sim_name}.log'
 
-    def mk_df(step_dir: str, setup: SetupDict) -> pd.DataFrame:
+    def mk_df(step_dir: str, setup: SetupDict) -> pl.DataFrame:
         log = parse_log(read_log(working_dir / step_dir / log_name))
-        df  = pd.DataFrame(log.time_steps)
+        df  = pl.DataFrame(log.time_steps,
+                           schema_overrides = {
+                           'u': pl.List(pl.Float64),
+                           'u_sigma': pl.List(pl.Float64),
+                           'p': pl.List(pl.Float64),
+                           'p_sigma': pl.List(pl.Float64),
+                           })
 
-        df['step']  = step_dir
-        df['dt_e3'] = setup['dt'] * 1000
+        return df.with_columns(
+            step  = pl.lit(step_dir),
+            dt_e3 = pl.lit(setup['dt'] * 1000)
+        )
 
-        return df
+    merged_df = pl.concat([mk_df(step_dir, setup) for step_dir, setup in config.steps.items()])
+    time      = accumulate(merged_df['dt_e3'], lambda acc, x: acc + x)
 
-    dfs = [mk_df(step_dir, setup) for step_dir, setup in config.steps.items()]
-
-    merged_df = pd.concat(dfs, ignore_index=True)
-    time      = accumulate(merged_df['dt_e3'],
-                           lambda acc, x: acc + x,
-                           initial=0)
-
-    merged_df['time_fs'] = pd.Series(time)
-    merged_df['kelvin']  = merged_df.dipo_kinetic / (1.5 * BoltzmannConst)
-
-    return merged_df
+    return merged_df.with_columns(
+        time_fs = pl.Series(time),
+        kelvin  = pl.col('dipo_kinetic') / (1.5 * BoltzmannConst)
+    )
 
 
 if __name__ == "__main__":
-    pd.options.mode.copy_on_write = True
-
     CUSTOM_FERAM_BIN = Path.home() / 'Code' / 'git' / 'AutoFeram' / 'feram-0.26.04' / 'build_20240401' / 'src' / 'feram'
 
     material       = BTO
@@ -126,27 +128,27 @@ if __name__ == "__main__":
             '1_preNPT': merge_setups([
                 General(
                     method       = Method.MD,
-                    n_thermalize = 0,
+                    n_thermalize = 99,
                     n_average    = 8, #0000
-                    n_coord_freq = 8, #0000
+                    n_coord_freq = 107, #0000
                 ),
                 efield_static
             ]) | common,
             '2_preNPE': merge_setups([
                 General(
                     method       = Method.LF,
-                    n_thermalize = 0,
+                    n_thermalize = 99,
                     n_average    = 12, #0000
-                    n_coord_freq = 12, #0000
+                    n_coord_freq = 111, #0000
                 ),
                 efield_static
             ]) | common,
             '3_rampNPE': merge_setups([
                 General(
                     method       = Method.LF,
-                    n_thermalize = 10, #0000
+                    n_thermalize = 99, #0000
                     n_average    = 0,
-                    n_coord_freq = 10, #0000
+                    n_coord_freq = 99, #0000
                 ),
                 EFieldDynamic(
                     n_hl_freq        = 1, #00
@@ -158,23 +160,24 @@ if __name__ == "__main__":
             '4_postNPE': merge_setups([
                 General(
                     method       = Method.LF,
-                    n_thermalize = 0,
+                    n_thermalize = 99,
                     n_average    = 18, #0000
-                    n_coord_freq = 18, #0000
+                    n_coord_freq = 117, #0000
                 ),
                 efield_static
             ]) | common
         })
 
     res = run(runner, config)
-
+    if res.is_err():
+        quit()
     color_res = colors.yellow(res) if res.is_ok() else colors.red(res)
     print(color_res)
 
     # post processing
     res = post_process(runner, config)
 
-    write_path = runner.working_dir / 'ece.pickle'
-    res.to_pickle(write_path)
+    write_path = runner.working_dir / 'ece.parquet'
+    res.write_parquet(write_path)
 
-    print(res)
+    print(res.select(pl.col('u')))
