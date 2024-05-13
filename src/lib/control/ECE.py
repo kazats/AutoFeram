@@ -1,4 +1,5 @@
 import polars as pl
+import tarfile
 import colors
 from pathlib import Path
 from functools import reduce
@@ -35,7 +36,7 @@ def run(runner: ECERunner, ece_config: ECEConfig) -> Result[Any, str]:
 
     sim_name, working_dir, feram_bin = runner
 
-    create_dirs = OperationSequence([
+    pre = OperationSequence([
         MkDirs(DirOut(working_dir)),
         *[MkDirs(DirOut(working_dir / step_dir)) for step_dir in ece_config.steps.keys()]
     ])
@@ -54,20 +55,29 @@ def run(runner: ECERunner, ece_config: ECEConfig) -> Result[Any, str]:
                     DirIn(dir_cur),
                     Feram(Exec(feram_bin),
                           FileIn(feram_file))),
-            copy_restart
+            copy_restart,
+            Cd(DirIn(Path.cwd())),
         ])
 
     def reducer(acc: OperationSequence, next_step) -> OperationSequence:
         (dir_cur, setups), (dir_next, _) = next_step
         return acc + step(setups, dir_cur, dir_next)
 
-    steps     = [(working_dir / step_dir, setups) for step_dir, setups in ece_config.steps.items()]
-    step_zip  = zip_longest(steps, steps[1:], fillvalue=(Any, Any))
-    run_steps = reduce(reducer, step_zip, OperationSequence())
+    steps    = [(working_dir / step_dir, setups) for step_dir, setups in ece_config.steps.items()]
+    step_zip = zip_longest(steps, steps[1:], fillvalue=(Any, Any))
+    steps    = reduce(reducer, step_zip, OperationSequence())
+
+    post     = OperationSequence([
+        WriteParquet(FileOut(working_dir / 'ece.parquet'),
+                     lambda: post_process(runner, ece_config)),
+        Archive(DirIn(working_dir),
+                FileOut(project_root() / 'output' / f'{working_dir}.tar.gz'))
+    ])
 
     all = OperationSequence([
-        *create_dirs,
-        *run_steps
+        *pre,
+        *steps,
+        *post
     ])
 
     return all.run().and_then(lambda _: Ok('Measure ECE: success'))
@@ -122,6 +132,8 @@ if __name__ == "__main__":
         working_dir = project_root() / 'output' / 'ece',
     )
 
+    _, working_dir, _ = runner
+
     config = ECEConfig(
         material = material,
         steps = {
@@ -168,16 +180,6 @@ if __name__ == "__main__":
             ]) | common
         })
 
-    res = run(runner, config)
-    if res.is_err():
-        quit()
+    res       = run(runner, config)
     color_res = colors.yellow(res) if res.is_ok() else colors.red(res)
     print(color_res)
-
-    # post processing
-    res = post_process(runner, config)
-
-    write_path = runner.working_dir / 'ece.parquet'
-    res.write_parquet(write_path)
-
-    print(res.select(pl.col('u')))
