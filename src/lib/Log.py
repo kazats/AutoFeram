@@ -34,7 +34,7 @@ class TimeStep(NamedTuple):
 class Log(NamedTuple):
     time_steps: Sequence[TimeStep]
 
-    def to_df(self) -> pd.DataFrame:
+    def to_pandas(self) -> pd.DataFrame:
         return pd.DataFrame(self.time_steps)
 
     def to_polars(self) -> pl.DataFrame:
