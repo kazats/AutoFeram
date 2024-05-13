@@ -1,6 +1,8 @@
+import polars as pl
 import subprocess as sub
 import os
 import shutil
+import tarfile
 import colors
 from functools import reduce
 from pathlib import Path
@@ -210,20 +212,56 @@ class Append(Operation):
 
 
 class Write(Operation):
-    def __init__(self, file: FileOut, content: Callable[[], str]) -> None:
-        super().__init__(lambda: self.do(file, content))
+    def __init__(self, file: FileOut, get_content: Callable[[], str]) -> None:
+        super().__init__(lambda: self.do(file, get_content))
 
     @as_result(Exception)
-    def safe_write(self, file: FileOut, s: str):
+    def safe_write(self, file: FileOut, content: str):
         with open(file.path, 'w') as outf:
-            outf.write(s)
+            outf.write(content)
 
-    def do(self, file: FileOut, content: Callable[[], str]) -> Result[Any, str]:
+    def do(self, file: FileOut, get_content: Callable[[], str]) -> Result[Any, str]:
         return do(
             Ok(res)
             for checked_out in file.check_preconditions()
-            for res in self.safe_write(checked_out, content())
-        ).map(lambda _: f"Write: '{relative_to_cwd(file.path)}'").map_err(lambda x: f'Write: {x}')
+            for res in self.safe_write(checked_out, get_content())
+        ).map(lambda _: f"Write: {relative_to_cwd(file.path)}").map_err(lambda x: f'Write: {x}')
+
+
+class WriteParquet(Operation):
+    def __init__(self, file: FileOut, get_df: Callable[[], pl.DataFrame]) -> None:
+        super().__init__(lambda: self.do(file, get_df))
+
+    @as_result(Exception)
+    def safe_write_parquet(self, file: FileOut, df: pl.DataFrame):
+        df.write_parquet(file.path)
+
+    def do(self, file: FileOut, get_df: Callable[[], pl.DataFrame]) -> Result[Any, str]:
+        return do(
+            Ok(res)
+            # TODO: check input files
+            for checked_out in file.check_preconditions()
+            for res in self.safe_write_parquet(checked_out, get_df())
+        ).map(lambda _: f"WriteParquet: {relative_to_cwd(file.path)}").map_err(lambda x: f'WriteParquet: {x}')
+
+
+class Archive(Operation):
+    def __init__(self, src: DirIn | FileIn, dst: FileOut) -> None:
+        super().__init__(lambda: self.do(src, dst))
+
+    @as_result(Exception)
+    def safe_archive(self, src, dst):
+        with tarfile.open(dst.path, "w:gz") as tar:
+            tar.add(src.path, arcname=src.path.name)
+
+    def do(self, src, dst) -> Result[Any, str]:
+        return do(
+            Ok(res)
+            for checked_src in src.check_preconditions()
+            for checked_dst in dst.check_preconditions()
+            for res in self.safe_archive(checked_src, checked_dst)
+        ).map(lambda _: f"Archive: {relative_to_cwd(src.path)} >> {relative_to_cwd(dst.path)}")\
+        .map_err(lambda x: f'Archive: {x}')
 
 
 class Feram(Operation):
