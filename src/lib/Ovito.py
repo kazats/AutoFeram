@@ -64,7 +64,7 @@ def write_dump(dump_path: Path, dipo_files: Sequence[Path], mod_file: Optional[P
             n_atoms     = len(df)
 
             dump.write('ITEM: TIMESTEP\n'
-                f'{i}\t{dump_path}\n'
+                f'{i} {dump_path.name}\n'
                 'ITEM: NUMBER OF ATOMS\n'
                 f'{n_atoms}\n'
                 'ITEM: BOX BOUNDS pp pp pp\n'
