@@ -13,6 +13,7 @@ from src.lib.Config import *
 from src.lib.Util import feram_with_fallback, project_root
 from src.lib.Log import *
 from src.lib.Operations import *
+from src.lib.Ovito import WriteOvitoDump
 
 
 class ECERunner(NamedTuple):
@@ -56,7 +57,9 @@ def run(runner: ECERunner, ece_config: ECEConfig) -> Result[Any, str]:
                     Feram(Exec(feram_bin),
                           FileIn(feram_file))),
             copy_restart,
-            # TODO: WriteOvitoDump
+            WriteOvitoDump(FileOut(working_dir / f'{dir_cur}.ovito'),
+                           DirIn(dir_cur),
+                           'coord')
         ])
 
     def reducer(acc: OperationSequence, next_step) -> OperationSequence:

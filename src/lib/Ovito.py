@@ -1,8 +1,7 @@
-import argparse
-from typing import Optional
+import re
 import numpy as np
 import pandas as pd
-from collections.abc import Mapping
+from typing import Optional
 from numpy.typing import NDArray
 from pathlib import Path
 
@@ -13,7 +12,6 @@ def parse_dipo_df(fname: Path) -> pd.DataFrame:
     columns = ['x', 'y', 'z', 'ux', 'uy', 'uz']
     pd_df   = pd.read_table(fname, sep=r'\s+', header=None).iloc[:, 0:6]
     renamed = pd_df.rename(columns=dict(enumerate(columns)))
-    # return pl.from_pandas(pd_df)
     return renamed
 
 
@@ -84,7 +82,7 @@ def write_dump(dump_path: Path, dipo_files: Sequence[Path], mod_file: Optional[P
 
 
 class WriteOvitoDump(Operation):
-    def __init__(self, file: FileOut, working_dir: DirIn, ext: str, mod_file: Optional[FileIn]) -> None:
+    def __init__(self, file: FileOut, working_dir: DirIn, ext: str, mod_file: Optional[FileIn] = None) -> None:
         super().__init__(lambda: self.do(file, working_dir, ext, mod_file))
 
     @as_result(Exception)
@@ -92,13 +90,17 @@ class WriteOvitoDump(Operation):
         write_dump(file.path, dipo_files, mod_file.path if mod_file else None)
 
     def do(self, file: FileOut, working_dir: DirIn, ext: str, mod_file: Optional[FileIn]) -> Result[Any, str]:
-        dipo_files = sorted(working_dir.path.glob(f'*.{ext}'), key = lambda f: int(f.stem))
+        def natsort(file: Path) -> list[str | int]:
+            return [int(t) if t.isdigit() else t.lower() for t in re.split(r'(\d+)', file.stem)]
+
+        dipo_files = sorted(working_dir.path.glob(f'*.{ext}'), key = natsort)
+        # print(dipo_files)
 
         def dipo_files_exist(dipo_files: Sequence[Path]) -> Result[Sequence[Path], str]:
             if len(dipo_files) > 0:
                 return Ok(dipo_files)
             else:
-                return Err(f'No *.{ext} file found')
+                return Err(f'No *.{ext} file found in {working_dir}')
 
         return do(
             Ok(res)
@@ -107,24 +109,3 @@ class WriteOvitoDump(Operation):
             for checked_in    in (mod_file.check_preconditions() if mod_file else Ok(None))
             for res in self.safe_write(checked_out, checked_dipos, checked_in)
         ).map(lambda _: f"WriteOvitoDump: {relative_to_cwd(file.path)}").map_err(lambda x: f'WriteOvitoDump: {x}')
-
-
-# if __name__ == "__main__":
-    # parser = argparse.ArgumentParser(description='Transform Feram output to dump format.')
-    # parser.add_argument('extension', metavar='ext', type=str, nargs=1,
-    #                     help='file extension')
-    # parser.add_argument('-p', dest='path', type=str, default='./',
-    #                     help='set working directory (default=./)')
-    # parser.add_argument('-s', dest='step_size', type=int, default=1,
-    #                     help='select files by a certain step size (default=1)')
-    # parser.add_argument('-r', dest='reverse', action='store_true', default=False,
-    #                     help='sort files in reverse order (default=False)')
-    # parser.add_argument('-m', dest='modulation', type=str, default=None,
-    #                     help='[optional] add modulation information to dump file (default=None)')
-    #
-    # args     = parser.parse_args()
-    # ext      = args.extension[0]
-    # path     = Path(args.path)
-    # step     = args.step_size
-    # reverse  = args.reverse
-    # mod_file = args.modulation
