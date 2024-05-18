@@ -56,7 +56,6 @@ def run(runner: ECERunner, ece_config: ECEConfig) -> Result[Any, str]:
                     Feram(Exec(feram_bin),
                           FileIn(feram_file))),
             copy_restart,
-            Cd(DirIn(Path.cwd())),
             # TODO: WriteOvitoDump
         ])
 
@@ -64,11 +63,12 @@ def run(runner: ECERunner, ece_config: ECEConfig) -> Result[Any, str]:
         (dir_cur, setups), (dir_next, _) = next_step
         return acc + step(setups, dir_cur, dir_next)
 
-    steps    = [(working_dir / step_dir, setups) for step_dir, setups in ece_config.steps.items()]
-    step_zip = zip_longest(steps, steps[1:], fillvalue=(Any, Any))
-    steps    = reduce(reducer, step_zip, OperationSequence())
+    steps     = [(working_dir / step_dir, setups) for step_dir, setups in ece_config.steps.items()]
+    step_zip  = zip_longest(steps, steps[1:], fillvalue=(Any, Any))
+    steps_all = reduce(reducer, step_zip, OperationSequence())
 
-    post     = OperationSequence([
+    post = OperationSequence([
+        Cd(DirIn(project_root() / 'output')),
         WriteParquet(FileOut(working_dir / 'ece.parquet'),
                      lambda: post_process(runner, ece_config)),
         Archive(DirIn(working_dir),
@@ -77,7 +77,7 @@ def run(runner: ECERunner, ece_config: ECEConfig) -> Result[Any, str]:
 
     all = OperationSequence([
         *pre,
-        *steps,
+        *steps_all,
         *post
     ])
 
