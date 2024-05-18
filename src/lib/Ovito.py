@@ -1,11 +1,8 @@
 import argparse
-from collections.abc import Mapping
-import os, glob
 import numpy as np
-from numpy.typing import NDArray
-import polars as pl
 import pandas as pd
-import re
+from collections.abc import Mapping
+from numpy.typing import NDArray
 from pathlib import Path
 
 
