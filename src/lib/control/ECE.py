@@ -57,6 +57,7 @@ def run(runner: ECERunner, ece_config: ECEConfig) -> Result[Any, str]:
                           FileIn(feram_file))),
             copy_restart,
             Cd(DirIn(Path.cwd())),
+            # TODO: WriteOvitoDump
         ])
 
     def reducer(acc: OperationSequence, next_step) -> OperationSequence:

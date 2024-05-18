@@ -1,9 +1,12 @@
 import argparse
+from typing import Optional
 import numpy as np
 import pandas as pd
 from collections.abc import Mapping
 from numpy.typing import NDArray
 from pathlib import Path
+
+from src.lib.Operations import *
 
 
 def parse_dipo_df(fname: Path) -> pd.DataFrame:
@@ -45,12 +48,15 @@ def vorticity3d_df(dipo_df: pd.DataFrame, dx: float, dy: float, dz: float) -> pd
     return df
 
 
-def write_dump(file: Path, modulation: NDArray, atom_types: Mapping[NDArray, int]):
-    with open(dump_file, 'w') as dump:
-        for i, file in enumerate(dipo_files):
-            print(file)
+def write_dump(dump_path: Path, dipo_files: Sequence[Path], mod_file: Optional[Path]):
+    modulation = parse_mod(mod_file)[:, 3] if mod_file else np.array([0])  # _xm, _ym, _zm, mm = mod[:,0], mod[:,1], mod[:,2], mod[:,3]
+    atom_types = { t: i + 1 for i, t in enumerate(np.unique(modulation)) }
 
-            df = vorticity3d_df(parse_dipo_df(file), dx = 1, dy = 1, dz = 1)
+    with open(dump_path, 'w') as dump:
+        for i, dump_path in enumerate(dipo_files):
+            print(dump_path)
+
+            df = vorticity3d_df(parse_dipo_df(dump_path), dx = 1, dy = 1, dz = 1)
 
             x, y, z       = df.x, df.y, df.z
             ux, uy, uz    = df.ux, df.uy, df.uz
@@ -60,7 +66,7 @@ def write_dump(file: Path, modulation: NDArray, atom_types: Mapping[NDArray, int
             n_atoms     = len(df)
 
             dump.write('ITEM: TIMESTEP\n'
-                f'{i}\t{file}\n'
+                f'{i}\t{dump_path}\n'
                 'ITEM: NUMBER OF ATOMS\n'
                 f'{n_atoms}\n'
                 'ITEM: BOX BOUNDS pp pp pp\n'
@@ -77,34 +83,48 @@ def write_dump(file: Path, modulation: NDArray, atom_types: Mapping[NDArray, int
                 )
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Transform Feram output to dump format.')
-    parser.add_argument('extension', metavar='ext', type=str, nargs=1,
-                        help='file extension')
-    parser.add_argument('-p', dest='path', type=str, default='./',
-                        help='set working directory (default=./)')
-    parser.add_argument('-s', dest='step_size', type=int, default=1,
-                        help='select files by a certain step size (default=1)')
-    parser.add_argument('-r', dest='reverse', action='store_true', default=False,
-                        help='sort files in reverse order (default=False)')
-    parser.add_argument('-m', dest='modulation', type=str, default=None,
-                        help='[optional] add modulation information to dump file (default=None)')
+class WriteOvitoDump(Operation):
+    def __init__(self, file: FileOut, working_dir: DirIn, ext: str, mod_file: Optional[FileIn]) -> None:
+        super().__init__(lambda: self.do(file, working_dir, ext, mod_file))
 
-    args     = parser.parse_args()
-    ext      = args.extension[0]
-    path     = Path(args.path)
-    step     = args.step_size
-    reverse  = args.reverse
-    mod_file = args.modulation
+    @as_result(Exception)
+    def safe_write(self, file: FileOut, dipo_files: Sequence[Path], mod_file: Optional[FileIn]):
+        write_dump(file.path, dipo_files, mod_file.path if mod_file else None)
 
-    dump_file  = Path(f'dump_vtx_{ext}')
-    dipo_files = sorted(path.glob(f'*.{ext}'), key=lambda f: int(f.stem), reverse=reverse)
+    def do(self, file: FileOut, working_dir: DirIn, ext: str, mod_file: Optional[FileIn]) -> Result[Any, str]:
+        dipo_files = sorted(working_dir.path.glob(f'*.{ext}'), key = lambda f: int(f.stem))
 
-    if len(dipo_files) == 0:
-        print(f'[Warning] No *.{ext} file found!')
-        exit()
+        def dipo_files_exist(dipo_files: Sequence[Path]) -> Result[Sequence[Path], str]:
+            if len(dipo_files) > 0:
+                return Ok(dipo_files)
+            else:
+                return Err(f'No *.{ext} file found')
 
-    modulation = parse_mod(mod_file)[:, 3] if mod_file else np.array([0])  # _xm, _ym, _zm, mm = mod[:,0], mod[:,1], mod[:,2], mod[:,3]
-    atom_types = { t: i + 1 for i, t in enumerate(np.unique(modulation)) }
+        return do(
+            Ok(res)
+            for checked_dipos in dipo_files_exist(dipo_files)
+            for checked_out   in file.check_preconditions()
+            for checked_in    in (mod_file.check_preconditions() if mod_file else Ok(None))
+            for res in self.safe_write(checked_out, checked_dipos, checked_in)
+        ).map(lambda _: f"WriteOvitoDump: {relative_to_cwd(file.path)}").map_err(lambda x: f'WriteOvitoDump: {x}')
 
-    write_dump(dump_file, modulation, atom_types)
+
+# if __name__ == "__main__":
+    # parser = argparse.ArgumentParser(description='Transform Feram output to dump format.')
+    # parser.add_argument('extension', metavar='ext', type=str, nargs=1,
+    #                     help='file extension')
+    # parser.add_argument('-p', dest='path', type=str, default='./',
+    #                     help='set working directory (default=./)')
+    # parser.add_argument('-s', dest='step_size', type=int, default=1,
+    #                     help='select files by a certain step size (default=1)')
+    # parser.add_argument('-r', dest='reverse', action='store_true', default=False,
+    #                     help='sort files in reverse order (default=False)')
+    # parser.add_argument('-m', dest='modulation', type=str, default=None,
+    #                     help='[optional] add modulation information to dump file (default=None)')
+    #
+    # args     = parser.parse_args()
+    # ext      = args.extension[0]
+    # path     = Path(args.path)
+    # step     = args.step_size
+    # reverse  = args.reverse
+    # mod_file = args.modulation
