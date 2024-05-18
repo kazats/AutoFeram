@@ -140,27 +140,27 @@ if __name__ == "__main__":
             '1_preNPT': merge_setups([
                 General(
                     method       = Method.MD,
-                    n_thermalize = 99,
+                    n_thermalize = 0,
                     n_average    = 8, #0000
-                    n_coord_freq = 107, #0000
+                    n_coord_freq = 8, #0000
                 ),
                 efield_static
             ]) | common,
             '2_preNPE': merge_setups([
                 General(
                     method       = Method.LF,
-                    n_thermalize = 99,
+                    n_thermalize = 0,
                     n_average    = 12, #0000
-                    n_coord_freq = 111, #0000
+                    n_coord_freq = 12, #0000
                 ),
                 efield_static
             ]) | common,
             '3_rampNPE': merge_setups([
                 General(
                     method       = Method.LF,
-                    n_thermalize = 99, #0000
+                    n_thermalize = 10, #0000
                     n_average    = 0,
-                    n_coord_freq = 99, #0000
+                    n_coord_freq = 10, #0000
                 ),
                 EFieldDynamic(
                     n_hl_freq        = 1, #00
@@ -172,9 +172,9 @@ if __name__ == "__main__":
             '4_postNPE': merge_setups([
                 General(
                     method       = Method.LF,
-                    n_thermalize = 99,
+                    n_thermalize = 0,
                     n_average    = 18, #0000
-                    n_coord_freq = 117, #0000
+                    n_coord_freq = 18, #0000
                 ),
                 efield_static
             ]) | common
