@@ -31,7 +31,9 @@ def parse_dipo_df(fname=None):
         raw = fr.readlines()
     dipo_list = [list(map(float,c)) for c in list(map(lambda line: line.strip().split()[:6], raw))]
     columns = 'x y z ux uy uz'.split()
-    return pd.DataFrame(data=dipo_list, columns=columns)
+    df = pd.DataFrame(data=dipo_list, columns=columns)
+    print(df)
+    return df
 
 def parse_mod(fname=None):
     with open(fname, 'r') as fr:
