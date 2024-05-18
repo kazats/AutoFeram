@@ -10,7 +10,7 @@ from typing import NamedTuple
 from src.lib.common import BoltzmannConst, Vec3
 from src.lib.materials.BTO import BTO
 from src.lib.Config import *
-from src.lib.Util import feram_path, project_root
+from src.lib.Util import feram_with_fallback, project_root
 from src.lib.Log import *
 from src.lib.Operations import *
 
@@ -128,7 +128,7 @@ if __name__ == "__main__":
 
     runner = ECERunner(
         sim_name    = 'bto',
-        feram_path  = feram_path(CUSTOM_FERAM_BIN),
+        feram_path  = feram_with_fallback(CUSTOM_FERAM_BIN),
         working_dir = project_root() / 'output' / 'ece',
     )
 
