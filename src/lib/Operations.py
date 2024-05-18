@@ -9,7 +9,7 @@ from pathlib import Path
 from enum import Enum
 from result import Result, Ok, Err, as_result, do
 from collections.abc import Callable, Sequence
-from typing import Any, Self, TypeAlias, cast
+from typing import Any, Self, TypeAlias
 
 from src.lib.Util import src_root
 
@@ -132,8 +132,8 @@ class WithDir(Operation):
     def do(self, return_dir: DirIn, working_dir: DirIn, operation: Operation) -> Result[Any, str]:
         return do(
             Ok(dir_from)
-            for to_dir in Cd(working_dir).run()
-            for res in operation.run()
+            for _ in Cd(working_dir).run()
+            for _ in operation.run()
             for dir_from in Cd(return_dir).run()
         ).map(lambda _: f'WithDir: {relative_to_cwd(working_dir.path)}').map_err(lambda x: f'WithDir: {str(x)}')
 
