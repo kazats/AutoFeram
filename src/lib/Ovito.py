@@ -52,8 +52,6 @@ def write_dump(dump_path: Path, dipo_files: Sequence[Path], mod_file: Optional[P
 
     with open(dump_path, 'w') as dump:
         for i, dump_path in enumerate(dipo_files):
-            print(dump_path)
-
             df = vorticity3d_df(parse_dipo_df(dump_path), dx = 1, dy = 1, dz = 1)
 
             x, y, z       = df.x, df.y, df.z
