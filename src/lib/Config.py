@@ -111,7 +111,7 @@ class PolarizationParameters(NamedTuple):
     factor: float
 
 
-SetupDict: TypeAlias = Mapping[str, Any]
+SetupDict: TypeAlias = dict[str, Any]
 
 @dataclass
 class FeramConfig:
