@@ -1,12 +1,11 @@
 import polars as pl
-import colors
 from pathlib import Path
 from functools import reduce
 from itertools import accumulate, zip_longest
 from collections.abc import Mapping
 from typing import NamedTuple
 
-from src.lib.common import BoltzmannConst, Vec3
+from src.lib.common import BoltzmannConst, Vec3, colorize
 from src.lib.materials.BTO import BTO
 from src.lib.Config import *
 from src.lib.Log import *
@@ -87,7 +86,9 @@ def run(runner: ECERunner, ece_config: ECEConfig) -> Result[Any, str]:
         *post
     ])
 
-    return all.run().and_then(lambda _: Ok('Measure ECE: success'))
+    return all.run().and_then(
+        lambda _: Ok('Measure ECE: Success')).map_err(
+        lambda _: 'Control Temperature: Failure')
 
 
 def post_process(runner: ECERunner, config: ECEConfig) -> pl.DataFrame:
@@ -187,6 +188,4 @@ if __name__ == "__main__":
             ]) | common
         })
 
-    res       = run(runner, config)
-    color_res = colors.yellow(res) if res.is_ok() else colors.red(res)
-    print(color_res)
+    print(colorize(run(runner, config)))

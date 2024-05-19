@@ -4,7 +4,7 @@ from pathlib import Path
 from itertools import accumulate
 from typing import NamedTuple
 
-from src.lib.common import BoltzmannConst, Vec3
+from src.lib.common import BoltzmannConst, Vec3, colorize
 from src.lib.materials.BTO import BTO
 from src.lib.Config import *
 from src.lib.Log import *
@@ -96,7 +96,9 @@ def run(runner: TempRunner, temp_config: TempConfig) -> Result[Any, str]:
         *post
     ])
 
-    return all.run().and_then(lambda _: Ok('Control Temperature: success'))
+    return all.run().and_then(
+        lambda _: Ok('Control Temperature: Success')).map_err(
+        lambda _: 'Control Temperature: Failure')
 
 
 def post_process(runner: TempRunner, config: TempConfig) -> pl.DataFrame:
@@ -155,6 +157,4 @@ if __name__ == "__main__":
         temperatures = Temp(initial=10, final=20, delta=5)
     )
 
-    res       = run(runner, config)
-    color_res = colors.yellow(res) if res.is_ok() else colors.red(res)
-    print(color_res)
+    print(colorize(run(runner, config)))
