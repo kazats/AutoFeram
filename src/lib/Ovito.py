@@ -91,7 +91,7 @@ class WriteOvitoDump(Operation):
 
     def do(self, file: FileOut, working_dir: DirIn, ext: str, mod_file: Optional[FileIn]) -> Result[Any, str]:
         def natsort(file: Path) -> list[str | int]:
-            return [int(t) if t.isdigit() else t.lower() for t in re.split(r'(\d+)', file.stem)]
+            return [int(t) if t.isdigit() else t.lower() for t in re.split(r'(\d+)', file.name)]
 
         dipo_files = sorted(working_dir.path.glob(f'*.{ext}'), key = natsort)
         # print(dipo_files)
