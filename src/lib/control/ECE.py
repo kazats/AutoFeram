@@ -57,9 +57,12 @@ def run(runner: ECERunner, ece_config: ECEConfig) -> Result[Any, str]:
                     Feram(Exec(feram_bin),
                           FileIn(feram_file))),
             copy_restart,
-            WriteOvitoDump(FileOut(working_dir / f'{dir_cur}.ovito'),
+            WriteOvitoDump(FileOut(working_dir / f'coords_{dir_cur.name}.ovito'),
                            DirIn(dir_cur),
-                           'coord')
+                           'coord'),
+            WriteOvitoDump(FileOut(working_dir / f'dipoRavgs_{dir_cur.name}.ovito'),
+                           DirIn(dir_cur),
+                           'dipoRavg')
         ])
 
     def reducer(acc: OperationSequence, next_step) -> OperationSequence:
@@ -72,7 +75,7 @@ def run(runner: ECERunner, ece_config: ECEConfig) -> Result[Any, str]:
 
     post = OperationSequence([
         Cd(DirIn(project_root() / 'output')),
-        WriteParquet(FileOut(working_dir / 'ece.parquet'),
+        WriteParquet(FileOut(working_dir / f'{working_dir.name}.parquet'),
                      lambda: post_process(runner, ece_config)),
         Archive(DirIn(working_dir),
                 FileOut(project_root() / 'output' / f'{working_dir}.tar.gz'))
@@ -146,7 +149,7 @@ if __name__ == "__main__":
                     method       = Method.MD,
                     n_thermalize = 0,
                     n_average    = 8, #0000
-                    n_coord_freq = 8, #0000
+                    n_coord_freq = 2, #0000
                 ),
                 efield_static
             ]) | common,
@@ -155,7 +158,7 @@ if __name__ == "__main__":
                     method       = Method.LF,
                     n_thermalize = 0,
                     n_average    = 12, #0000
-                    n_coord_freq = 12, #0000
+                    n_coord_freq = 2, #0000
                 ),
                 efield_static
             ]) | common,
@@ -164,7 +167,7 @@ if __name__ == "__main__":
                     method       = Method.LF,
                     n_thermalize = 10, #0000
                     n_average    = 0,
-                    n_coord_freq = 10, #0000
+                    n_coord_freq = 2, #0000
                 ),
                 EFieldDynamic(
                     n_hl_freq        = 1, #00
@@ -178,7 +181,7 @@ if __name__ == "__main__":
                     method       = Method.LF,
                     n_thermalize = 0,
                     n_average    = 18, #0000
-                    n_coord_freq = 18, #0000
+                    n_coord_freq = 2, #0000
                 ),
                 efield_static
             ]) | common
