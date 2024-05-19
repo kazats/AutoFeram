@@ -1,5 +1,5 @@
 ansicolors==1.1.8
 pandas==2.2.2
 parsy==2.1
-polars==0.20.25
+polars==0.20.26
 result==0.16.1
