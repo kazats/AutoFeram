@@ -1,17 +1,15 @@
-import os
-import shutil
+import polars as pl
 import colors
-from result import is_err
 from pathlib import Path
-from typing import cast
+from itertools import accumulate
+from typing import NamedTuple
 
-from src.lib.common import Vec3, BoltzmannConst
-
-from src.lib import Config
+from src.lib.common import BoltzmannConst, Vec3
 from src.lib.materials.BTO import BTO
 from src.lib.Config import *
-from src.lib.Operations import *
 from src.lib.Log import *
+from src.lib.Operations import *
+from src.lib.Ovito import WriteOvitoDump
 from src.lib.Util import feram_with_fallback, project_root
 
 
@@ -30,32 +28,31 @@ class Temp(NamedTuple):
 class TempConfig(NamedTuple):
     config: FeramConfig
     temperatures: Temp
-    # Ti: int
-    # Tf: int
-    # dT: int
 
 
 def run(runner: TempRunner, temp_config: TempConfig) -> Result[Any, str]:
-
     sim_name, working_dir, feram_bin = runner
     config, temps = temp_config
 
     feram_file      = working_dir / f'{sim_name}.feram'
     avg_file        = working_dir / f'{sim_name}.avg'
     thermo_file     = working_dir / 'thermo.avg'
+    coord_dir       = working_dir / 'coords'
+    dipoRavg_dir    = working_dir / 'dipoRavg'
     dipoRavg_file   = working_dir / f'{sim_name}.dipoRavg'
     last_coord_file = working_dir / f'{sim_name}.{config.last_coord()}.coord'
     restart_file    = working_dir / f'{sim_name}.restart'
 
     pre = OperationSequence([
-        MkDirs(DirOut(working_dir / 'coords')),
-        MkDirs(DirOut(working_dir / 'dipoRavg')),
+        MkDirs(DirOut(working_dir)),
+        MkDirs(DirOut(coord_dir)),
+        MkDirs(DirOut(dipoRavg_dir)),
         Cd(DirIn(working_dir))
     ])
 
     def step(temperature: int) -> OperationSequence:
-        temp_dipoRavg_file = working_dir / 'dipoRavg' / f'{temperature}.dipoRavg'
-        temp_coord_file    = working_dir / 'coords' / f'{temperature}.coord'
+        temp_coord_file    = coord_dir / f'{temperature}.coord'
+        temp_dipoRavg_file = dipoRavg_dir / f'{temperature}.dipoRavg'
 
         config.setup['kelvin'] = temperature
 
@@ -78,7 +75,19 @@ def run(runner: TempRunner, temp_config: TempConfig) -> Result[Any, str]:
     steps = reduce(lambda acc, t: acc + step(t), range(*temps), OperationSequence())
 
     post = OperationSequence([
-        Remove(FileIn(restart_file))
+        Cd(DirIn(project_root() / 'output')),
+        Remove(FileIn(restart_file)),
+
+        WriteOvitoDump(FileOut(working_dir / 'coords.ovito'),
+                       DirIn(coord_dir),
+                       'coord'),
+        WriteOvitoDump(FileOut(working_dir / 'dipoRavgs.ovito'),
+                       DirIn(dipoRavg_dir),
+                       'dipoRavg'),
+        WriteParquet(FileOut(working_dir / f'{working_dir.name}.parquet'),
+                     lambda: post_process(runner, temp_config)),
+        Archive(DirIn(working_dir),
+                FileOut(project_root() / 'output' / f'{working_dir.name}.tar.gz'))
     ])
 
     all = OperationSequence([
@@ -90,23 +99,32 @@ def run(runner: TempRunner, temp_config: TempConfig) -> Result[Any, str]:
     return all.run().and_then(lambda _: Ok('Control Temperature: success'))
 
 
-def post_process(log: Log, config: FeramConfig) -> pd.DataFrame:
-    dt = config.setup['dt']
+def post_process(runner: TempRunner, config: TempConfig) -> pl.DataFrame:
+    sim_name, working_dir, _ = runner
+    log_name = f'{sim_name}.log'
 
-    df = pd.DataFrame(log.time_steps)
-    df['kelvin'] = df.dipo_kinetic / (1.5 * BoltzmannConst)
-    df['time_ps'] = pd.Series(map(lambda x: x * dt, range(len(df))))
-    # df['time_ps'] = pd.Series(accumulate(range(df.shape[0]), lambda x, _: x + dt))
+    log = parse_log(read_log(working_dir / log_name))
 
-    return df
+    df = pl.DataFrame(log.time_steps,
+                      schema_overrides = {
+                      'u': pl.List(pl.Float64),
+                      'u_sigma': pl.List(pl.Float64),
+                      'p': pl.List(pl.Float64),
+                      'p_sigma': pl.List(pl.Float64),
+                      })
+
+    dt   = config.config.setup['dt'] * 1000
+    time = accumulate(range(1, len(df)), lambda acc, _: acc + dt, initial=dt)
+
+    return df.with_columns(
+        dt_fs   = pl.lit(dt),
+        time_fs = pl.Series(time),
+        kelvin  = pl.col('dipo_kinetic') / (1.5 * BoltzmannConst)
+    )
 
 
 if __name__ == "__main__":
     CUSTOM_FERAM_BIN = Path.home() / 'Code' / 'git' / 'AutoFeram' / 'feram-0.26.04' / 'build_20240401' / 'src' / 'feram'
-
-
-    test_path = project_root() / 'output' / 'temp'
-    os.makedirs(test_path, exist_ok=True)
 
     runner = TempRunner(
         sim_name    = 'bto',
@@ -137,16 +155,6 @@ if __name__ == "__main__":
         temperatures = Temp(initial=10, final=20, delta=5)
     )
 
-    res = run(runner, config)
-
+    res       = run(runner, config)
     color_res = colors.yellow(res) if res.is_ok() else colors.red(res)
     print(color_res)
-
-    # post processing
-    log_path = test_path / 'bto.log'
-    log_raw  = read_log(log_path)
-    log      = parse_log(log_raw)
-    res      = post_process(log, config.config)
-
-    print(res)
-    # print(len(res))
