@@ -1,5 +1,4 @@
 import polars as pl
-import tarfile
 import colors
 from pathlib import Path
 from functools import reduce
@@ -10,10 +9,10 @@ from typing import NamedTuple
 from src.lib.common import BoltzmannConst, Vec3
 from src.lib.materials.BTO import BTO
 from src.lib.Config import *
-from src.lib.Util import feram_with_fallback, project_root
 from src.lib.Log import *
 from src.lib.Operations import *
 from src.lib.Ovito import WriteOvitoDump
+from src.lib.Util import feram_with_fallback, project_root
 
 
 class ECERunner(NamedTuple):
@@ -75,10 +74,11 @@ def run(runner: ECERunner, ece_config: ECEConfig) -> Result[Any, str]:
 
     post = OperationSequence([
         Cd(DirIn(project_root() / 'output')),
+
         WriteParquet(FileOut(working_dir / f'{working_dir.name}.parquet'),
                      lambda: post_process(runner, ece_config)),
         Archive(DirIn(working_dir),
-                FileOut(project_root() / 'output' / f'{working_dir}.tar.gz'))
+                FileOut(project_root() / 'output' / f'{working_dir.name}.tar.gz'))
     ])
 
     all = OperationSequence([
@@ -106,11 +106,11 @@ def post_process(runner: ECERunner, config: ECEConfig) -> pl.DataFrame:
 
         return df.with_columns(
             step  = pl.lit(step_dir),
-            dt_e3 = pl.lit(setup['dt'] * 1000)
+            dt_fs = pl.lit(setup['dt'] * 1000)
         )
 
     merged_df = pl.concat([mk_df(step_dir, setup) for step_dir, setup in config.steps.items()])
-    time      = accumulate(merged_df['dt_e3'], lambda acc, x: acc + x)
+    time      = accumulate(merged_df['dt_fs'], lambda acc, x: acc + x)
 
     return merged_df.with_columns(
         time_fs = pl.Series(time),
