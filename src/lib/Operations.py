@@ -35,13 +35,13 @@ def file_exists(path: Path) -> PreconditionReturn:
     if os.path.isfile(path):
         return Ok(path)
     else:
-        return Err(f"No such file: {relative_to_cwd(path)}")
+        return Err(f'No such file: {relative_to_cwd(path)}')
 
 def dir_exists(path: Path) -> PreconditionReturn:
     if os.path.isdir(path):
         return Ok(path)
     else:
-        return Err(f"No such directory: {relative_to_cwd(path)}")
+        return Err(f'No such directory: {relative_to_cwd(path)}')
 
 
 FilePathType = Enum('FilePathType', ['FileIn', 'FileOut', 'DirIn', 'DirOut'])
@@ -102,7 +102,7 @@ class Empty(Operation):
         super().__init__(lambda: self.do())
 
     def do(self) -> Result[Any, str]:
-        return Ok(f"Empty: 😄")
+        return Ok(f'Empty')
 
 
 class MkDirs(Operation):
@@ -111,7 +111,7 @@ class MkDirs(Operation):
 
     def do(self, path: DirOut) -> Result[Any, str]:
         os.makedirs(path.path, mode=0o755, exist_ok=True)
-        return Ok(f"MkDir: '{relative_to_cwd(path.path)}'")
+        return Ok(f'MkDir: {relative_to_cwd(path.path)}')
 
 
 class Cd(Operation):
@@ -208,7 +208,7 @@ class Append(Operation):
             for checked_in in path_in.check_preconditions()
             for checked_out in path_out.check_preconditions()
             for res in self.safe_append(checked_in, checked_out)
-        ).map(lambda _: f"Append: {relative_to_cwd(path_in.path)} >> {relative_to_cwd(path_out.path)}").map_err(lambda x: f'Append: {x}')
+        ).map(lambda _: f'Append: {relative_to_cwd(path_in.path)} >> {relative_to_cwd(path_out.path)}').map_err(lambda x: f'Append: {x}')
 
 
 class Write(Operation):
@@ -225,7 +225,7 @@ class Write(Operation):
             Ok(res)
             for checked_out in file.check_preconditions()
             for res in self.safe_write(checked_out, get_content())
-        ).map(lambda _: f"Write: {relative_to_cwd(file.path)}").map_err(lambda x: f'Write: {x}')
+        ).map(lambda _: f'Write: {relative_to_cwd(file.path)}').map_err(lambda x: f'Write: {x}')
 
 
 class WriteParquet(Operation):
@@ -242,7 +242,7 @@ class WriteParquet(Operation):
             # TODO: check input files
             for checked_out in file.check_preconditions()
             for res in self.safe_write_parquet(checked_out, get_df())
-        ).map(lambda _: f"WriteParquet: {relative_to_cwd(file.path)}").map_err(lambda x: f'WriteParquet: {x}')
+        ).map(lambda _: f'WriteParquet: {relative_to_cwd(file.path)}').map_err(lambda x: f'WriteParquet: {x}')
 
 
 class Archive(Operation):
@@ -251,7 +251,7 @@ class Archive(Operation):
 
     @as_result(Exception)
     def safe_archive(self, src, dst):
-        with tarfile.open(dst.path, "w:gz") as tar:
+        with tarfile.open(dst.path, 'w:gz') as tar:
             tar.add(src.path, arcname=src.path.name)
 
     def do(self, src, dst) -> Result[Any, str]:
@@ -260,7 +260,7 @@ class Archive(Operation):
             for checked_src in src.check_preconditions()
             for checked_dst in dst.check_preconditions()
             for res in self.safe_archive(checked_src, checked_dst)
-        ).map(lambda _: f"Archive: {relative_to_cwd(src.path)} >> {relative_to_cwd(dst.path)}")\
+        ).map(lambda _: f'Archive: {relative_to_cwd(src.path)} >> {relative_to_cwd(dst.path)}')\
         .map_err(lambda x: f'Archive: {x}')
 
 
@@ -297,7 +297,7 @@ class OperationSequence:
         return OperationSequence(self.operations + other.operations)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     # FERAM_BIN = Path.home() / 'Code' / 'git' / 'AutoFeram' / 'feram-0.26.04' / 'build_20240401' / 'src' / 'feram'
     # FERAM_BIN = Path(cast(str, shutil.which('feram')))
 
