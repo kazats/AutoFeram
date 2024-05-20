@@ -11,7 +11,7 @@ from result import Result, Ok, Err, as_result, do
 from collections.abc import Callable, Sequence
 from typing import Any, Self, TypeAlias
 
-from src.lib.Util import src_root
+from src.lib.Util import project_root
 
 
 safe_run = as_result(Exception)(sub.run)
@@ -23,9 +23,9 @@ def from_completed_process(completed_process: sub.CompletedProcess) -> Result[st
         return Err(f'[{completed_process.returncode}] {completed_process.stderr}')
 
 
-def relative_to_cwd(path: Path) -> Path:
+def rel_to_project_root(path: Path) -> Path:
     # return path
-    return path.relative_to(Path.cwd())
+    return path.relative_to(project_root())
 
 
 PreconditionReturn: TypeAlias = Result[Path, str]
@@ -35,13 +35,13 @@ def file_exists(path: Path) -> PreconditionReturn:
     if os.path.isfile(path):
         return Ok(path)
     else:
-        return Err(f'No such file: {relative_to_cwd(path)}')
+        return Err(f'No such file: {rel_to_project_root(path)}')
 
 def dir_exists(path: Path) -> PreconditionReturn:
     if os.path.isdir(path):
         return Ok(path)
     else:
-        return Err(f'No such directory: {relative_to_cwd(path)}')
+        return Err(f'No such directory: {rel_to_project_root(path)}')
 
 
 FilePathType = Enum('FilePathType', ['FileIn', 'FileOut', 'DirIn', 'DirOut'])
@@ -56,7 +56,7 @@ class FilePath():
         self.preconditions = preconditions
 
     def __repr__(self) -> str:
-        return str(relative_to_cwd(self.path))
+        return str(rel_to_project_root(self.path))
 
     def check_preconditions(self) -> Result[Self, Sequence[str]]:
         checked = (cond(self.path) for cond in self.preconditions)
@@ -111,7 +111,7 @@ class MkDirs(Operation):
 
     def do(self, path: DirOut) -> Result[Any, str]:
         os.makedirs(path.path, mode=0o755, exist_ok=True)
-        return Ok(f'MkDir: {relative_to_cwd(path.path)}')
+        return Ok(f'MkDir: {rel_to_project_root(path.path)}')
 
 
 class Cd(Operation):
@@ -135,7 +135,7 @@ class WithDir(Operation):
             for _ in Cd(working_dir).run()
             for _ in operation.run()
             for dir_from in Cd(return_dir).run()
-        ).map(lambda _: f'WithDir: {relative_to_cwd(working_dir.path)}').map_err(lambda x: f'WithDir: {str(x)}')
+        ).map(lambda _: f'WithDir: {rel_to_project_root(working_dir.path)}').map_err(lambda x: f'WithDir: {str(x)}')
 
 
 class Remove(Operation):
@@ -146,7 +146,7 @@ class Remove(Operation):
         return do(
             as_result(OSError)(os.remove)(checked.path)
             for checked in file.check_preconditions()
-        ).map(lambda _: f'Remove: {relative_to_cwd(file.path)}').map_err(lambda x: f'Remove: {str(x)}')
+        ).map(lambda _: f'Remove: {rel_to_project_root(file.path)}').map_err(lambda x: f'Remove: {str(x)}')
 
 
 class Rename(Operation):
@@ -157,7 +157,7 @@ class Rename(Operation):
         return do(
             as_result(OSError)(os.rename)(checked_src.path, dst.path)
             for checked_src in src.check_preconditions()
-        ).map(lambda _: f'Rename: {relative_to_cwd(src.path)} >> {relative_to_cwd(dst.path)}').map_err(lambda x: f'Rename: {str(x)}')
+        ).map(lambda _: f'Rename: {rel_to_project_root(src.path)} >> {rel_to_project_root(dst.path)}').map_err(lambda x: f'Rename: {str(x)}')
 
 
 class Cat(Operation):
@@ -172,7 +172,7 @@ class Cat(Operation):
                 sub.run(['cat', checked.path],
                         capture_output=True,
                         universal_newlines=True))
-        ).map(lambda _: f'Cat: {relative_to_cwd(file.path)}').map_err(lambda x: f'Cat: {x}')
+        ).map(lambda _: f'Cat: {rel_to_project_root(file.path)}').map_err(lambda x: f'Cat: {x}')
         # return do(
         #     Ok(res)
         #     for checked in file.check_preconditions()
@@ -189,7 +189,7 @@ class Copy(Operation):
         return do(
             as_result(OSError)(shutil.copy2)(checked_src.path, dst.path)
             for checked_src in src.check_preconditions()
-        ).map(lambda _: f'Copy: {relative_to_cwd(src.path)} >> {relative_to_cwd(dst.path)}').map_err(lambda x: f'Copy: {str(x)}')
+        ).map(lambda _: f'Copy: {rel_to_project_root(src.path)} >> {rel_to_project_root(dst.path)}').map_err(lambda x: f'Copy: {str(x)}')
 
 
 class Append(Operation):
@@ -208,7 +208,7 @@ class Append(Operation):
             for checked_in in path_in.check_preconditions()
             for checked_out in path_out.check_preconditions()
             for res in self.safe_append(checked_in, checked_out)
-        ).map(lambda _: f'Append: {relative_to_cwd(path_in.path)} >> {relative_to_cwd(path_out.path)}').map_err(lambda x: f'Append: {x}')
+        ).map(lambda _: f'Append: {rel_to_project_root(path_in.path)} >> {rel_to_project_root(path_out.path)}').map_err(lambda x: f'Append: {x}')
 
 
 class Write(Operation):
@@ -225,7 +225,7 @@ class Write(Operation):
             Ok(res)
             for checked_out in file.check_preconditions()
             for res in self.safe_write(checked_out, get_content())
-        ).map(lambda _: f'Write: {relative_to_cwd(file.path)}').map_err(lambda x: f'Write: {x}')
+        ).map(lambda _: f'Write: {rel_to_project_root(file.path)}').map_err(lambda x: f'Write: {x}')
 
 
 class WriteParquet(Operation):
@@ -242,7 +242,7 @@ class WriteParquet(Operation):
             # TODO: check input files
             for checked_out in file.check_preconditions()
             for res in self.safe_write_parquet(checked_out, get_df())
-        ).map(lambda _: f'WriteParquet: {relative_to_cwd(file.path)}').map_err(lambda x: f'WriteParquet: {x}')
+        ).map(lambda _: f'WriteParquet: {rel_to_project_root(file.path)}').map_err(lambda x: f'WriteParquet: {x}')
 
 
 class Archive(Operation):
@@ -260,7 +260,7 @@ class Archive(Operation):
             for checked_src in src.check_preconditions()
             for checked_dst in dst.check_preconditions()
             for res in self.safe_archive(checked_src, checked_dst)
-        ).map(lambda _: f'Archive: {relative_to_cwd(src.path)} >> {relative_to_cwd(dst.path)}')\
+        ).map(lambda _: f'Archive: {rel_to_project_root(src.path)} >> {rel_to_project_root(dst.path)}')\
         .map_err(lambda x: f'Archive: {x}')
 
 
@@ -298,25 +298,26 @@ class OperationSequence:
 
 
 if __name__ == '__main__':
+    pass
     # FERAM_BIN = Path.home() / 'Code' / 'git' / 'AutoFeram' / 'feram-0.26.04' / 'build_20240401' / 'src' / 'feram'
     # FERAM_BIN = Path(cast(str, shutil.which('feram')))
 
     # Feram(Exec(FERAM_BIN), FileIn(Path('test.feram')))
 
-    test_path = src_root() / 'test' / 'file_operations'
-    test_file = test_path / 'test'
-    test_dir  = test_path / 'dir'
-
-    operations: Sequence[Operation] = [
-        MkDirs(DirOut(test_dir)),
-        WithDir(DirIn(test_path), DirIn(test_dir),
-                Append(FileIn(test_file),
-                       FileOut(test_dir / 'dir_test'))),
-        Append(FileIn(test_file),
-               FileOut(test_path / 'append')),
-        Copy(FileIn(test_path / 'append'),
-               FileOut(test_path / 'rename')),
-        # Remove(FileIn(test_path/'rename'))
-    ]
-
-    OperationSequence(operations).run()
+    # test_path = src_root() / 'test' / 'file_operations'
+    # test_file = test_path / 'test'
+    # test_dir  = test_path / 'dir'
+    #
+    # operations: Sequence[Operation] = [
+    #     MkDirs(DirOut(test_dir)),
+    #     WithDir(DirIn(test_path), DirIn(test_dir),
+    #             Append(FileIn(test_file),
+    #                    FileOut(test_dir / 'dir_test'))),
+    #     Append(FileIn(test_file),
+    #            FileOut(test_path / 'append')),
+    #     Copy(FileIn(test_path / 'append'),
+    #            FileOut(test_path / 'rename')),
+    #     # Remove(FileIn(test_path/'rename'))
+    # ]
+    #
+    # OperationSequence(operations).run()

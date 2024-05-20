@@ -68,8 +68,6 @@ def run(runner: Runner, ece_config: ECEConfig) -> Result[Any, str]:
     steps_all = reduce(reducer, step_zip, OperationSequence())
 
     post = OperationSequence([
-        Cd(DirIn(project_root() / 'output')),
-
         WriteParquet(FileOut(working_dir / f'{working_dir.name}.parquet'),
                      lambda: post_process(runner, ece_config)),
         Archive(DirIn(working_dir),

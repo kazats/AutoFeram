@@ -106,4 +106,4 @@ class WriteOvitoDump(Operation):
             for checked_out   in file.check_preconditions()
             for checked_in    in (mod_file.check_preconditions() if mod_file else Ok(None))
             for res in self.safe_write(checked_out, checked_dipos, checked_in)
-        ).map(lambda _: f'WriteOvitoDump: {relative_to_cwd(file.path)}').map_err(lambda x: f'WriteOvitoDump: {x}')
+        ).map(lambda _: f'WriteOvitoDump: {rel_to_project_root(file.path)}').map_err(lambda x: f'WriteOvitoDump: {x}')

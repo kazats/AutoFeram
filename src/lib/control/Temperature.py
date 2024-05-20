@@ -68,7 +68,6 @@ def run(runner: Runner, temp_config: TempConfig) -> Result[Any, str]:
     steps = reduce(lambda acc, t: acc + step(t), range(*temps), OperationSequence())
 
     post = OperationSequence([
-        Cd(DirIn(project_root() / 'output')),
         Remove(FileIn(restart_file)),
 
         WriteOvitoDump(FileOut(working_dir / 'coords.ovito'),
