@@ -5,6 +5,7 @@ from itertools import accumulate, zip_longest
 from collections.abc import Mapping
 from typing import NamedTuple
 
+from src.lib.control.common import Runner
 from src.lib.common import BoltzmannConst, Vec3, colorize
 from src.lib.materials.BTO import BTO
 from src.lib.Config import *
@@ -14,18 +15,13 @@ from src.lib.Ovito import WriteOvitoDump
 from src.lib.Util import feram_with_fallback, project_root
 
 
-class ECERunner(NamedTuple):
-    sim_name: str
-    working_dir: Path
-    feram_path: Path
-
 class ECEConfig(NamedTuple):
     # (n_thermalize + n_average) % n_coord_freq must == 0
     material: Material
     steps:    Mapping[str, SetupDict]
 
 
-def run(runner: ECERunner, ece_config: ECEConfig) -> Result[Any, str]:
+def run(runner: Runner, ece_config: ECEConfig) -> Result[Any, str]:
 
     def setup_with(setup: SetupDict) -> FeramConfig:
         return FeramConfig(
@@ -91,7 +87,7 @@ def run(runner: ECERunner, ece_config: ECEConfig) -> Result[Any, str]:
         lambda _: 'Control Temperature: Failure')
 
 
-def post_process(runner: ECERunner, config: ECEConfig) -> pl.DataFrame:
+def post_process(runner: Runner, config: ECEConfig) -> pl.DataFrame:
     sim_name, working_dir, _ = runner
     log_name = f'{sim_name}.log'
 
@@ -134,7 +130,7 @@ if __name__ == "__main__":
         'kelvin': temperature,
     }
 
-    runner = ECERunner(
+    runner = Runner(
         sim_name    = 'bto',
         feram_path  = feram_with_fallback(CUSTOM_FERAM_BIN),
         working_dir = project_root() / 'output' / 'ece',
