@@ -1,5 +1,4 @@
 import polars as pl
-import colors
 from pathlib import Path
 from itertools import accumulate
 from typing import NamedTuple
