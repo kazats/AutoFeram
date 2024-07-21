@@ -1,3 +1,4 @@
+import copy
 import polars as pl
 from pathlib import Path
 from itertools import accumulate
@@ -47,11 +48,12 @@ def run(runner: Runner, temp_config: TempConfig) -> Result[Any, str]:
         temp_coord_file    = coord_dir / f'{temperature}.coord'
         temp_dipoRavg_file = dipoRavg_dir / f'{temperature}.dipoRavg'
 
-        config.setup['kelvin'] = temperature
+        step_config = copy.deepcopy(config)
+        step_config.setup['kelvin'] = temperature
 
         return OperationSequence([
             Write(FileOut(feram_file),
-                  config.generate_feram_file),
+                  step_config.generate_feram_file),
             Feram(Exec(feram_bin),
                   FileIn(feram_file)),
             Append(FileIn(avg_file),
@@ -70,10 +72,10 @@ def run(runner: Runner, temp_config: TempConfig) -> Result[Any, str]:
     post = OperationSequence([
         Remove(FileIn(restart_file)),
 
-        WriteOvitoDump(FileOut(working_dir / 'coords.ovito'),
+        WriteOvitoDump(FileOut(working_dir / 'coords.ovt'),
                        DirIn(coord_dir),
                        'coord'),
-        WriteOvitoDump(FileOut(working_dir / 'dipoRavgs.ovito'),
+        WriteOvitoDump(FileOut(working_dir / 'dipoRavgs.ovt'),
                        DirIn(dipoRavg_dir),
                        'dipoRavg'),
         WriteParquet(FileOut(working_dir / f'{working_dir.name}.parquet'),
@@ -118,7 +120,7 @@ def post_process(runner: Runner, config: TempConfig) -> pl.DataFrame:
 
 
 if __name__ == "__main__":
-    CUSTOM_FERAM_BIN = Path.home() / 'Code' / 'git' / 'AutoFeram' / 'feram-0.26.04' / 'build_20240401' / 'src' / 'feram'
+    CUSTOM_FERAM_BIN = Path.home() / 'Code/feram-0.26.04_dev/build/src/feram'
 
     runner = Runner(
         sim_name    = 'bto',
@@ -146,7 +148,7 @@ if __name__ == "__main__":
             ]),
             material = BTO
         ),
-        temperatures = Temp(initial=10, final=20, delta=5)
+        temperatures = Temp(initial=13, final=20, delta=2)
     )
 
     print(colorize(run(runner, config)))

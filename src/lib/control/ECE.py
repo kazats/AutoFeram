@@ -114,7 +114,7 @@ def post_process(runner: Runner, config: ECEConfig) -> pl.DataFrame:
 
 
 if __name__ == "__main__":
-    CUSTOM_FERAM_BIN = Path.home() / 'Code' / 'git' / 'AutoFeram' / 'feram-0.26.04' / 'build_20240401' / 'src' / 'feram'
+    CUSTOM_FERAM_BIN = Path.home() / 'Code/feram-0.26.04_dev/build/src/feram'
 
     material       = BTO
     size           = Vec3(2, 2, 2)
