@@ -24,8 +24,8 @@ def from_completed_process(completed_process: sub.CompletedProcess) -> Result[st
 
 
 def rel_to_project_root(path: Path) -> Path:
-    # return path
-    return path.relative_to(project_root())
+    return path
+    # return path.relative_to(project_root())
 
 
 PreconditionReturn: TypeAlias = Result[Path, str]
