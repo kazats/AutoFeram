@@ -6,3 +6,6 @@ pip install -U polars-lts-cpu
 
 
 sim15: can forward agent to github
+
+virtualenv venv
+source venv/bin/activate
