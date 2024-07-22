@@ -91,8 +91,8 @@ def run(runner: Runner, temp_config: TempConfig) -> Result[Any, str]:
     ])
 
     return all.run().and_then(
-        lambda _: Ok('Control Temperature: Success')).map_err(
-        lambda _: 'Control Temperature: Failure')
+        lambda _: Ok('Temperature: Success')).map_err(
+        lambda _: 'Temperature: Failure')
 
 
 def post_process(runner: Runner, config: TempConfig) -> pl.DataFrame:
@@ -120,11 +120,11 @@ def post_process(runner: Runner, config: TempConfig) -> pl.DataFrame:
 
 
 if __name__ == "__main__":
-    CUSTOM_FERAM_BIN = Path.home() / 'Code/feram-0.26.04_dev/build/src/feram'
+    CUSTOM_FERAM_BIN = Path.home() / 'feram_dev/build/src/feram'
 
     runner = Runner(
         sim_name    = 'bto',
-        feram_path  = feram_with_fallback(CUSTOM_FERAM_BIN),
+        feram_path  = CUSTOM_FERAM_BIN,
         working_dir = project_root() / 'output' / 'temp',
     )
 
@@ -133,22 +133,22 @@ if __name__ == "__main__":
             setup = merge_setups([
                 General(
                     verbose      = 4,
-                    L            = Vec3(2, 2, 2),
-                    n_thermalize = 1,
-                    n_average    = 4,
-                    n_coord_freq = 1,
-                    bulk_or_film = Structure.Epit
+                    L            = Vec3(36, 36, 36),
+                    # n_thermalize = 4,
+                    # n_average = 2,
+                    # n_coord_freq = 6,
+                    bulk_or_film = Structure.Bulk
                 ),
-                EFieldStatic(
-                    external_E_field = Vec3(0.001, 0, 0)
-                ),
-                Strain(
-                    epi_strain = Vec3(0.01, 0.01, 0)
-                )
+                # EFieldStatic(
+                #     external_E_field = Vec3(0.001, 0, 0)
+                # ),
+                # Strain(
+                #     epi_strain = Vec3(0.01, 0.01, 0)
+                # )
             ]),
             material = BTO
         ),
-        temperatures = Temp(initial=13, final=20, delta=2)
+        temperatures = Temp(initial=350, final=50, delta=-5)
     )
 
     print(colorize(run(runner, config)))

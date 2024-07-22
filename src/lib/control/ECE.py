@@ -81,8 +81,8 @@ def run(runner: Runner, ece_config: ECEConfig) -> Result[Any, str]:
     ])
 
     return all.run().and_then(
-        lambda _: Ok('Measure ECE: Success')).map_err(
-        lambda _: 'Control Temperature: Failure')
+        lambda _: Ok('ECE: Success')).map_err(
+        lambda _: 'ECE: Failure')
 
 
 def post_process(runner: Runner, config: ECEConfig) -> pl.DataFrame:
@@ -114,7 +114,7 @@ def post_process(runner: Runner, config: ECEConfig) -> pl.DataFrame:
 
 
 if __name__ == "__main__":
-    CUSTOM_FERAM_BIN = Path.home() / 'Code/feram-0.26.04_dev/build/src/feram'
+    CUSTOM_FERAM_BIN = Path.home() / 'feram_dev/build/src/feram'
 
     material       = BTO
     size           = Vec3(2, 2, 2)
@@ -130,7 +130,7 @@ if __name__ == "__main__":
 
     runner = Runner(
         sim_name    = 'bto',
-        feram_path  = feram_with_fallback(CUSTOM_FERAM_BIN),
+        feram_path  = CUSTOM_FERAM_BIN,
         working_dir = project_root() / 'output' / 'ece',
     )
 
