@@ -6,7 +6,7 @@ from typing import NamedTuple
 
 from src.lib.control.common import Runner
 from src.lib.common import BoltzmannConst, Vec3, colorize
-from src.lib.materials.BTO import BTO
+from src.lib.materials.BST import BST
 from src.lib.Config import *
 from src.lib.Log import *
 from src.lib.Operations import *
@@ -123,9 +123,9 @@ if __name__ == "__main__":
     CUSTOM_FERAM_BIN = Path.home() / 'feram_dev/build/src/feram'
 
     runner = Runner(
-        sim_name    = 'bto',
+        sim_name    = 'bst',
         feram_path  = CUSTOM_FERAM_BIN,
-        working_dir = project_root() / 'output' / 'temp',
+        working_dir = project_root() / 'output' / 'demo',
     )
 
     config = TempConfig(
@@ -133,10 +133,10 @@ if __name__ == "__main__":
             setup = merge_setups([
                 General(
                     verbose      = 4,
-                    L            = Vec3(36, 36, 36),
-                    # n_thermalize = 4,
-                    # n_average = 2,
-                    # n_coord_freq = 6,
+                    L            = Vec3(3, 3, 2),
+                    n_thermalize = 4,
+                    n_average = 2,
+                    n_coord_freq = 6,
                     bulk_or_film = Structure.Bulk
                 ),
                 # EFieldStatic(
@@ -146,9 +146,9 @@ if __name__ == "__main__":
                 #     epi_strain = Vec3(0.01, 0.01, 0)
                 # )
             ]),
-            material = BTO
+            material = BST
         ),
-        temperatures = Temp(initial=350, final=50, delta=-5)
+        temperatures = Temp(initial=50, final=40, delta=-5)
     )
 
     print(colorize(run(runner, config)))

@@ -102,7 +102,7 @@ class Material:
 @dataclass
 class SolidSolution(Material):
     modulation_constant: float
-    acoustic_mass_amu: float
+    # acoustic_mass_amu: float
 
 
 class PolarizationParameters(NamedTuple):

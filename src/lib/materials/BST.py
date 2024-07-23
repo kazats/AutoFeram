@@ -21,5 +21,5 @@ BST = SolidSolution(
     j                   = '-2.048250285  -1.472144446  0.6396521198  -0.5891190367  0.0 0.2576732039  0.0',
     epsilon_inf         = 6.663371926,
     modulation_constant = -0.279,
-    acoustic_mass_amu   = 41.67
+    # acoustic_mass_amu   = 41.67
 )
