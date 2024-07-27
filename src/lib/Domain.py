@@ -130,36 +130,39 @@ def find_boundaries(size: Int3, grains: list[Domain]) -> PointMap:
     return boundaries
 
 
-def write_bto_localfield(dir_out: Path, system: PointMap):
-    with open(dir_out / 'bto.localfield', 'w') as f:
-        for coord, point in system.items():
-            x, y, z = coord
-            px, py, pz = point.domain.props
-            f.write(f'{x} {y} {z} {px} {py} {pz}\n')
+def generate_localfield(system: PointMap) -> Iterator[str]:
+    # return '\n'.join(f'{x} {y} {z} {point.domain.props[0]} {point.domain.props[1]} {point.domain.props[2]}'
+    #     for (x, y, z), point in system.items())
+
+    # with open(dir_out / 'bto.localfield', 'w') as f:
+    for coord, point in system.items():
+        x, y, z = coord
+        px, py, pz = point.domain.props
+        yield f'{x} {y} {z} {px} {py} {pz}'
 
 
-def write_bto_defects(dir_out: Path, system: PointMap):
-    with open(dir_out / 'bto.defects', 'w') as f:
-        for coord, point in system.items():
-            x, y, z = coord
-            px, py, pz = point.domain.props
+def generate_defects(system: PointMap) -> Iterator[str]:
+    for coord, point in system.items():
+        x, y, z = coord
+        px, py, pz = point.domain.props
 
-            if point.boundary and point.boundary < 1:
-                f.write(f'{x} {y} {z} {px * 134.106} {py} {pz}\n')
+        if point.boundary and point.boundary < 1:
+            yield f'{x} {y} {z} {px * 134.106} {py} {pz}' # 134.106?
 
-def assign_modulation(z: int, bto_sto: tuple[int, int]):
+
+def assign_modulation(z: int, bto_sto: tuple[int, int]) -> int:
     bto_sto_acc = list(accumulate(bto_sto, op.add))
     z_redu      = z % bto_sto_acc[-1]
 
     if z_redu < bto_sto_acc[0]:
         return 8 # bto
-    elif bto_sto_acc[0] <= z_redu < bto_sto_acc[1]:
+    else: # bto_sto_acc[0] <= z_redu < bto_sto_acc[1]:
         return -8 # sto
 
-def write_bto_modulation(dir_out: Path, size: Int3, coords: list[Int3], bto_sto: tuple[int, int]):
-    with open(dir_out / 'bto.modulation', 'w') as f:
-        for (x, y, z) in coords:
-            f.write(f'{x} {y} {z} {assign_modulation(z, bto_sto)}\n')
+def generate_modulation(coords: list[Int3], bto_sto: tuple[int, int]) -> Iterator[str]:
+    return (f'{x} {y} {z} {assign_modulation(z, bto_sto)}'
+        for x, y, z in coords)
+
 
 if __name__ == '__main__':
     working_dir = project_root() / 'output' / 'domain'
@@ -168,7 +171,7 @@ if __name__ == '__main__':
 
     grains = [
         Domain(Int3(0, 0, 0), Props(0, 0, 0)),
-        # Domain(Int3(0, 2, 0), Props(0, 1, 0)),
+        Domain(Int3(1, 0, 0), Props(0, 1, 0)),
         # Domain(Int3(12, 47, 0), Props(1, 0, 0)),
         # Domain(Int3(24, 24, 0), Props(0, -1, 0)),
     ]
@@ -176,8 +179,11 @@ if __name__ == '__main__':
     system = find_boundaries(size, grains)
 
     ##### get .modulation: for superlattices
-    BTO_STO = (1, 2)
-    write_bto_modulation(working_dir, size, generate_coords(size), BTO_STO)
+    # BTO_STO = (1, 2)
+    # bto_modulation = generate_bto_modulation(generate_coords(size), BTO_STO)
+    # print('\n'.join(generate_modulation(generate_coords(size), BTO_STO)))
 
     ##### get .localfield and .defects: for multidomains
-    [ f(working_dir, system) for f in [write_bto_localfield, write_bto_defects] ]
+    # [ f(working_dir, system) for f in [write_bto_localfield, write_bto_defects] ]
+
+    print('\n'.join(generate_defects(system)))
