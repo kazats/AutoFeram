@@ -1,3 +1,4 @@
+import datetime
 import copy
 import polars as pl
 from pathlib import Path
@@ -80,6 +81,8 @@ def run(runner: Runner, temp_config: TempConfig) -> Result[Any, str]:
                        'dipoRavg'),
         WriteParquet(FileOut(working_dir / f'{working_dir.name}.parquet'),
                      lambda: post_process(runner, temp_config)),
+        Copy(FileIn(Path(__file__)),
+             FileOut(working_dir / 'AutoFeram_control.py')),
         Archive(DirIn(working_dir),
                 FileOut(project_root() / 'output' / f'{working_dir.name}.tar.gz'))
     ])
@@ -122,10 +125,12 @@ def post_process(runner: Runner, config: TempConfig) -> pl.DataFrame:
 if __name__ == "__main__":
     CUSTOM_FERAM_BIN = Path.home() / 'feram_dev/build/src/feram'
 
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d")
+
     runner = Runner(
         sim_name    = 'bto',
         feram_path  = CUSTOM_FERAM_BIN,
-        working_dir = project_root() / 'output' / 'temp',
+        working_dir = project_root() / 'output' / f'temp_{timestamp}',
     )
 
     config = TempConfig(

@@ -1,3 +1,4 @@
+import datetime
 import polars as pl
 from pathlib import Path
 from functools import reduce
@@ -70,6 +71,8 @@ def run(runner: Runner, ece_config: ECEConfig) -> Result[Any, str]:
     post = OperationSequence([
         WriteParquet(FileOut(working_dir / f'{working_dir.name}.parquet'),
                      lambda: post_process(runner, ece_config)),
+        Copy(FileIn(Path(__file__)),
+             FileOut(working_dir / 'AutoFeram_control.py')),
         Archive(DirIn(working_dir),
                 FileOut(project_root() / 'output' / f'{working_dir.name}.tar.gz'))
     ])
@@ -128,10 +131,12 @@ if __name__ == "__main__":
         'kelvin': temperature,
     }
 
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d")
+
     runner = Runner(
         sim_name    = 'bto',
         feram_path  = CUSTOM_FERAM_BIN,
-        working_dir = project_root() / 'output' / 'ece',
+        working_dir = project_root() / 'output' / f'ece_{timestamp}',
     )
 
     _, working_dir, _ = runner
