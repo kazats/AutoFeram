@@ -8,6 +8,7 @@
 - [x] ece
 
 # misc
+- [ ] abort on existing output directory
 - [ ] add resume functionality
 
 
@@ -15,6 +16,3 @@
 
 ## structure
 - <https://python-docs.readthedocs.io/en/latest/writing/structure.html>
-
-## misc
-- files can selectively extracted from archives
