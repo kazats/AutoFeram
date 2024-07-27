@@ -88,14 +88,14 @@ class System:
         """float: is the percentage of the majority domain"""
 
         neighbors: Sequence[Point]    = self.find_neighbors(coord, d)
-        neighbor_grains: list[Domain] = [n[1].domain for n in neighbors]
-        neighbor_grain_count          = Counter(neighbor_grains)
-        max_grain                     = neighbor_grain_count.most_common(1)[0]
+        neighbor_domains: list[Domain] = [n[1].domain for n in neighbors]
+        neighbor_domain_count          = Counter(neighbor_domains)
+        max_domain                     = neighbor_domain_count.most_common(1)[0]
 
-        return (max_grain[0], max_grain[1] / neighbor_grain_count.total())
+        return (max_domain[0], max_domain[1] / neighbor_domain_count.total())
 
 
-def find_closest_grain(domains: list[Domain], coord: Int3) -> Domain:
+def find_closest_domain(domains: list[Domain], coord: Int3) -> Domain:
     def distance(p1: Int3, p2: Int3) -> np.floating:
         return np.linalg.norm(np.fromiter(p1, int) - np.fromiter(p2, int))
 
@@ -116,11 +116,11 @@ def generate_coords(size: Int3) -> list[Int3]:
     ]
 
 
-def find_boundaries(size: Int3, grains: list[Domain]) -> PointMap:
+def find_boundaries(size: Int3, domains: list[Domain]) -> PointMap:
     coords: list[Int3] = generate_coords(size)
     system: System = System(
         size,
-        {coord: PointProps(find_closest_grain(grains, coord), None) for coord in coords},
+        {coord: PointProps(find_closest_domain(domains, coord), None) for coord in coords},
     )
 
     boundaries = {
@@ -169,14 +169,14 @@ if __name__ == '__main__':
 
     size = Int3(2, 1, 6)
 
-    grains = [
+    domains = [
         Domain(Int3(0, 0, 0), Props(0, 0, 0)),
         Domain(Int3(1, 0, 0), Props(0, 1, 0)),
         # Domain(Int3(12, 47, 0), Props(1, 0, 0)),
         # Domain(Int3(24, 24, 0), Props(0, -1, 0)),
     ]
 
-    system = find_boundaries(size, grains)
+    system = find_boundaries(size, domains)
 
     ##### get .modulation: for superlattices
     # BTO_STO = (1, 2)
