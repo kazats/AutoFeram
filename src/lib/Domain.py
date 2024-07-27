@@ -1,17 +1,20 @@
 #!/usr/bin/env python
 # author: Lan-Tien Hsu
 
+# python version: 3.11.8 (higher than 3.10 should work)
 '''
 Define your domain seeds (variables called "Domain", imagine a seed where a specific domain starts to grow)
 and the electric field in xyz direction (variables called "Props") in the __main__ section.
 '''
 
-from collections.abc import Sequence
 import numpy as np
+import operator as op
+from collections.abc import Sequence
 from pathlib import Path
 from dataclasses import dataclass
 from collections import Counter
 from typing import NamedTuple, TypeAlias, Iterator, Optional
+from itertools import accumulate
 
 from src.lib.common import Vec3
 from src.lib.Util import project_root
@@ -81,7 +84,7 @@ class System:
                 and all(coord[i] < self.size[i] for i in range(len(self.size)))
         ]
 
-    def find_most_common_grain(self, coord: Int3, d: int) -> tuple[Domain, float]:
+    def find_boundary(self, coord: Int3, d: int) -> tuple[Domain, float]:
         """float: is the percentage of the majority domain"""
 
         neighbors: Sequence[Point]    = self.find_neighbors(coord, d)
@@ -90,9 +93,6 @@ class System:
         max_grain                     = neighbor_grain_count.most_common(1)[0]
 
         return (max_grain[0], max_grain[1] / neighbor_grain_count.total())
-
-    def find_boundary(self, coord: Int3, d: int) -> tuple[Domain, float]:
-        return self.find_most_common_grain(coord, d)
 
 
 def find_closest_grain(domains: list[Domain], coord: Int3) -> Domain:
@@ -138,7 +138,7 @@ def write_bto_localfield(dir_out: Path, system: PointMap):
             f.write(f'{x} {y} {z} {px} {py} {pz}\n')
 
 
-def write_bto_defects(dir_out: Path, system: dict[Int3, PointProps]):
+def write_bto_defects(dir_out: Path, system: PointMap):
     with open(dir_out / 'bto.defects', 'w') as f:
         for coord, point in system.items():
             x, y, z = coord
@@ -147,26 +147,37 @@ def write_bto_defects(dir_out: Path, system: dict[Int3, PointProps]):
             if point.boundary and point.boundary < 1:
                 f.write(f'{x} {y} {z} {px * 134.106} {py} {pz}\n')
 
+def assign_modulation(z: int, bto_sto: tuple[int, int]):
+    bto_sto_acc = list(accumulate(bto_sto, op.add))
+    z_redu      = z % bto_sto_acc[-1]
+
+    if z_redu < bto_sto_acc[0]:
+        return 8 # bto
+    elif bto_sto_acc[0] <= z_redu < bto_sto_acc[1]:
+        return -8 # sto
+
+def write_bto_modulation(dir_out: Path, size: Int3, coords: list[Int3], bto_sto: tuple[int, int]):
+    with open(dir_out / 'bto.modulation', 'w') as f:
+        for (x, y, z) in coords:
+            f.write(f'{x} {y} {z} {assign_modulation(z, bto_sto)}\n')
 
 if __name__ == '__main__':
     working_dir = project_root() / 'output' / 'domain'
 
-    # size = Int3(48, 96, 48)
-    # grains = [
-    #     Domain(Int3(24, 0, 0), Props(-1, 0, 0)),
-    #     Domain(Int3(0, 48, 0), Props(0, 1, 0)),
-    #     Domain(Int3(24, 95, 0), Props(1, 0, 0)),
-    #     Domain(Int3(48, 48, 0), Props(0, -1, 0)),
-    # ]
+    size = Int3(2, 1, 6)
 
-    size = Int3(24, 48, 24)
     grains = [
-        Domain(Int3(12, 0, 0), Props(-1, 0, 0)),
-        Domain(Int3(0, 24, 0), Props(0, 1, 0)),
-        Domain(Int3(12, 47, 0), Props(1, 0, 0)),
-        Domain(Int3(24, 24, 0), Props(0, -1, 0)),
+        Domain(Int3(0, 0, 0), Props(0, 0, 0)),
+        # Domain(Int3(0, 2, 0), Props(0, 1, 0)),
+        # Domain(Int3(12, 47, 0), Props(1, 0, 0)),
+        # Domain(Int3(24, 24, 0), Props(0, -1, 0)),
     ]
 
     system = find_boundaries(size, grains)
 
+    ##### get .modulation: for superlattices
+    BTO_STO = (1, 2)
+    write_bto_modulation(working_dir, size, generate_coords(size), BTO_STO)
+
+    ##### get .localfield and .defects: for multidomains
     [ f(working_dir, system) for f in [write_bto_localfield, write_bto_defects] ]
