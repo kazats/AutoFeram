@@ -7,7 +7,7 @@
 - [x] thermo
 - [x] ece
 
-# misc
+## misc
 - [ ] abort on existing output directory
 - [ ] add resume functionality
 
