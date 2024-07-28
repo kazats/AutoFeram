@@ -43,6 +43,12 @@ def dir_exists(path: Path) -> PreconditionReturn:
     else:
         return Err(f'No such directory: {rel_to_project_root(path)}')
 
+def dir_doesnt_exist(path: Path) -> PreconditionReturn:
+    if not os.path.isdir(path):
+        return Ok(path)
+    else:
+        return Err(f'Directory already exists: {rel_to_project_root(path)}')
+
 
 FilePathType = Enum('FilePathType', ['FileIn', 'FileOut', 'DirIn', 'DirOut'])
 
@@ -110,8 +116,10 @@ class MkDirs(Operation):
         super().__init__(lambda: self.do(path))
 
     def do(self, path: DirOut) -> Result[Any, str]:
-        os.makedirs(path.path, mode=0o755, exist_ok=True)
-        return Ok(f'MkDir: {rel_to_project_root(path.path)}')
+        return do(
+            as_result(FileExistsError)(os.makedirs)(checked.path, mode=0o755, exist_ok=True)
+            for checked in path.check_preconditions()
+        ).map(lambda _: f'MkDirs: {path.path}').map_err(lambda x: f'MkDirs: {x}')
 
 
 class Cd(Operation):

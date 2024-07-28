@@ -53,7 +53,7 @@ def run(runner: Runner, temp_config: TempConfig) -> Result[Any, str]:
     system = find_boundaries(size, domains)
 
     pre = OperationSequence([
-        MkDirs(DirOut(working_dir)),
+        MkDirs(DirOut(working_dir, [dir_doesnt_exist])),
         MkDirs(DirOut(coord_dir)),
         MkDirs(DirOut(dipoRavg_dir)),
         Cd(DirIn(working_dir)),
