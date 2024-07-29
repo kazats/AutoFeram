@@ -1,17 +1,20 @@
 #!/usr/bin/env python
 # author: Lan-Tien Hsu
 
+# python version: 3.11.8 (higher than 3.10 should work)
 '''
 Define your domain seeds (variables called "Domain", imagine a seed where a specific domain starts to grow)
 and the electric field in xyz direction (variables called "Props") in the __main__ section.
 '''
 
-from collections.abc import Sequence
 import numpy as np
+import operator as op
+from collections.abc import Sequence
 from pathlib import Path
 from dataclasses import dataclass
 from collections import Counter
 from typing import NamedTuple, TypeAlias, Iterator, Optional
+from itertools import accumulate
 
 from src.lib.common import Vec3
 from src.lib.Util import project_root
@@ -81,21 +84,18 @@ class System:
                 and all(coord[i] < self.size[i] for i in range(len(self.size)))
         ]
 
-    def find_most_common_grain(self, coord: Int3, d: int) -> tuple[Domain, float]:
+    def find_boundary(self, coord: Int3, d: int) -> tuple[Domain, float]:
         """float: is the percentage of the majority domain"""
 
         neighbors: Sequence[Point]    = self.find_neighbors(coord, d)
-        neighbor_grains: list[Domain] = [n[1].domain for n in neighbors]
-        neighbor_grain_count          = Counter(neighbor_grains)
-        max_grain                     = neighbor_grain_count.most_common(1)[0]
+        neighbor_domains: list[Domain] = [n[1].domain for n in neighbors]
+        neighbor_domain_count          = Counter(neighbor_domains)
+        max_domain                     = neighbor_domain_count.most_common(1)[0]
 
-        return (max_grain[0], max_grain[1] / neighbor_grain_count.total())
-
-    def find_boundary(self, coord: Int3, d: int) -> tuple[Domain, float]:
-        return self.find_most_common_grain(coord, d)
+        return (max_domain[0], max_domain[1] / neighbor_domain_count.total())
 
 
-def find_closest_grain(domains: list[Domain], coord: Int3) -> Domain:
+def find_closest_domain(domains: list[Domain], coord: Int3) -> Domain:
     def distance(p1: Int3, p2: Int3) -> np.floating:
         return np.linalg.norm(np.fromiter(p1, int) - np.fromiter(p2, int))
 
@@ -116,11 +116,11 @@ def generate_coords(size: Int3) -> list[Int3]:
     ]
 
 
-def find_boundaries(size: Int3, grains: list[Domain]) -> PointMap:
+def find_boundaries(size: Int3, domains: list[Domain]) -> PointMap:
     coords: list[Int3] = generate_coords(size)
     system: System = System(
         size,
-        {coord: PointProps(find_closest_grain(grains, coord), None) for coord in coords},
+        {coord: PointProps(find_closest_domain(domains, coord), None) for coord in coords},
     )
 
     boundaries = {
@@ -130,43 +130,60 @@ def find_boundaries(size: Int3, grains: list[Domain]) -> PointMap:
     return boundaries
 
 
-def write_bto_localfield(dir_out: Path, system: PointMap):
-    with open(dir_out / 'bto.localfield', 'w') as f:
-        for coord, point in system.items():
-            x, y, z = coord
-            px, py, pz = point.domain.props
-            f.write(f'{x} {y} {z} {px} {py} {pz}\n')
+def generate_localfield(system: PointMap) -> Iterator[str]:
+    # return '\n'.join(f'{x} {y} {z} {point.domain.props[0]} {point.domain.props[1]} {point.domain.props[2]}'
+    #     for (x, y, z), point in system.items())
+
+    # with open(dir_out / 'bto.localfield', 'w') as f:
+    for coord, point in system.items():
+        x, y, z = coord
+        px, py, pz = point.domain.props
+        yield f'{x} {y} {z} {px} {py} {pz}'
 
 
-def write_bto_defects(dir_out: Path, system: dict[Int3, PointProps]):
-    with open(dir_out / 'bto.defects', 'w') as f:
-        for coord, point in system.items():
-            x, y, z = coord
-            px, py, pz = point.domain.props
+def generate_defects(system: PointMap) -> Iterator[str]:
+    for coord, point in system.items():
+        x, y, z = coord
+        px, py, pz = point.domain.props
 
-            if point.boundary and point.boundary < 1:
-                f.write(f'{x} {y} {z} {px * 134.106} {py} {pz}\n')
+        if point.boundary and point.boundary < 1:
+            yield f'{x} {y} {z} {px * 134.106} {py} {pz}' # 134.106?
+
+
+def assign_modulation(z: int, bto_sto: tuple[int, int]) -> int:
+    bto_sto_acc = list(accumulate(bto_sto, op.add))
+    z_redu      = z % bto_sto_acc[-1]
+
+    if z_redu < bto_sto_acc[0]:
+        return 8 # bto
+    else: # bto_sto_acc[0] <= z_redu < bto_sto_acc[1]:
+        return -8 # sto
+
+def generate_modulation(coords: list[Int3], bto_sto: tuple[int, int]) -> Iterator[str]:
+    return (f'{x} {y} {z} {assign_modulation(z, bto_sto)}'
+        for x, y, z in coords)
 
 
 if __name__ == '__main__':
     working_dir = project_root() / 'output' / 'domain'
 
-    # size = Int3(48, 96, 48)
-    # grains = [
-    #     Domain(Int3(24, 0, 0), Props(-1, 0, 0)),
-    #     Domain(Int3(0, 48, 0), Props(0, 1, 0)),
-    #     Domain(Int3(24, 95, 0), Props(1, 0, 0)),
-    #     Domain(Int3(48, 48, 0), Props(0, -1, 0)),
-    # ]
+    size = Int3(2, 1, 6)
 
-    size = Int3(24, 48, 24)
-    grains = [
-        Domain(Int3(12, 0, 0), Props(-1, 0, 0)),
-        Domain(Int3(0, 24, 0), Props(0, 1, 0)),
-        Domain(Int3(12, 47, 0), Props(1, 0, 0)),
-        Domain(Int3(24, 24, 0), Props(0, -1, 0)),
+    domains = [
+        Domain(Int3(0, 0, 0), Props(0, 0, 0)),
+        Domain(Int3(1, 0, 0), Props(0, 1, 0)),
+        # Domain(Int3(12, 47, 0), Props(1, 0, 0)),
+        # Domain(Int3(24, 24, 0), Props(0, -1, 0)),
     ]
 
-    system = find_boundaries(size, grains)
+    system = find_boundaries(size, domains)
 
-    [ f(working_dir, system) for f in [write_bto_localfield, write_bto_defects] ]
+    ##### get .modulation: for superlattices
+    # BTO_STO = (1, 2)
+    # bto_modulation = generate_bto_modulation(generate_coords(size), BTO_STO)
+    # print('\n'.join(generate_modulation(generate_coords(size), BTO_STO)))
+
+    ##### get .localfield and .defects: for multidomains
+    # [ f(working_dir, system) for f in [write_bto_localfield, write_bto_defects] ]
+
+    print('\n'.join(generate_defects(system)))

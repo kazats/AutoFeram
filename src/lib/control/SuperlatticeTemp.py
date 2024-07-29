@@ -5,6 +5,7 @@ from pathlib import Path
 from itertools import accumulate
 from typing import NamedTuple
 
+from src.lib.Domain import *
 from src.lib.control.common import Runner
 from src.lib.common import BoltzmannConst, Vec3, colorize
 from src.lib.materials.BST import BST
@@ -37,12 +38,19 @@ def run(runner: Runner, temp_config: TempConfig) -> Result[Any, str]:
     dipoRavg_file   = working_dir / f'{sim_name}.dipoRavg'
     last_coord_file = working_dir / f'{sim_name}.{config.last_coord()}.coord'
     restart_file    = working_dir / f'{sim_name}.restart'
+    modulation      = working_dir / f'{sim_name}.modulation'
+
+    size    = config.setup['L']
+    system  = generate_coords(size)
+    bto_sto = (1, 1)                # sum(bto_sto) should = size.z
 
     pre = OperationSequence([
         MkDirs(DirOut(working_dir)),
         MkDirs(DirOut(coord_dir)),
         MkDirs(DirOut(dipoRavg_dir)),
-        Cd(DirIn(working_dir))
+        Cd(DirIn(working_dir)),
+        Write(FileOut(modulation),
+              lambda: '\n'.join(generate_modulation(system, bto_sto)))
     ])
 
     def step(temperature: int) -> OperationSequence:
@@ -94,8 +102,8 @@ def run(runner: Runner, temp_config: TempConfig) -> Result[Any, str]:
     ])
 
     return all.run().and_then(
-        lambda _: Ok('Temperature: Success')).map_err(
-        lambda _: 'Temperature: Failure')
+        lambda _: Ok('SuperlatticeTemp: Success')).map_err(
+        lambda _: 'SuperlatticeTemp: Failure')
 
 
 def post_process(runner: Runner, config: TempConfig) -> pl.DataFrame:
@@ -123,14 +131,14 @@ def post_process(runner: Runner, config: TempConfig) -> pl.DataFrame:
 
 
 if __name__ == "__main__":
-    CUSTOM_FERAM_BIN = Path.home() / 'feram_dev/build/src/feram'
+    CUSTOM_FERAM_BIN = Path.home() / 'Code/git/feram-0.26.04_dev/build/src/feram'
 
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d")
 
     runner = Runner(
-        sim_name    = 'bst',
+        sim_name    = 'bto',
         feram_path  = CUSTOM_FERAM_BIN,
-        working_dir = project_root() / 'output' / 'demo',
+        working_dir = project_root() / 'output' / f'superlattice_temp_{timestamp}',
     )
 
     config = TempConfig(
@@ -138,7 +146,7 @@ if __name__ == "__main__":
             setup = merge_setups([
                 General(
                     verbose      = 4,
-                    L            = Vec3(3, 3, 2),
+                    L            = Vec3(3, 3, 3),
                     n_thermalize = 4,
                     n_average = 2,
                     n_coord_freq = 6,
@@ -153,7 +161,9 @@ if __name__ == "__main__":
             ]),
             material = BST
         ),
-        temperatures = Temp(initial=50, final=40, delta=-5)
+        temperatures = Temp(initial=350, final=340, delta=-5)
     )
+
+    ###### superlattice (bto_sto) is defined in def run ######
 
     print(colorize(run(runner, config)))

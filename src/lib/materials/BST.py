@@ -1,3 +1,4 @@
+from src.lib.common import Vec7
 from src.lib.Config import SolidSolution
 
 
@@ -18,7 +19,7 @@ BST = SolidSolution(
     P_alpha             = 50.68630712,
     P_gamma             = -72.18357441,
     P_kappa2            = 9.4250031,
-    j                   = '-2.048250285  -1.472144446  0.6396521198  -0.5891190367  0.0 0.2576732039  0.0',
+    j                   = Vec7(-2.048250285, -1.472144446, 0.6396521198, -0.5891190367, 0.0, 0.2576732039, 0.0),
     epsilon_inf         = 6.663371926,
     modulation_constant = -0.279,
     # acoustic_mass_amu   = 41.67

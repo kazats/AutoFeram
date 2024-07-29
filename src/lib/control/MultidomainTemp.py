@@ -5,9 +5,10 @@ from pathlib import Path
 from itertools import accumulate
 from typing import NamedTuple
 
+from src.lib.Domain import *
 from src.lib.control.common import Runner
 from src.lib.common import BoltzmannConst, Vec3, colorize
-from src.lib.materials.BST import BST
+from src.lib.materials.BTO import BTO
 from src.lib.Config import *
 from src.lib.Log import *
 from src.lib.Operations import *
@@ -37,12 +38,27 @@ def run(runner: Runner, temp_config: TempConfig) -> Result[Any, str]:
     dipoRavg_file   = working_dir / f'{sim_name}.dipoRavg'
     last_coord_file = working_dir / f'{sim_name}.{config.last_coord()}.coord'
     restart_file    = working_dir / f'{sim_name}.restart'
+    localfield      = working_dir / f'{sim_name}.localfield'
+
+    size = config.setup['L']
+
+    # define the position of domain, and their properties
+    domains = [
+        Domain(Int3(0, 0, 0), Props(0, 0, 0)),
+        Domain(Int3(1, 0, 0), Props(0, 1, 0)),
+        # Domain(Int3(12, 47, 0), Props(1, 0, 0)),
+        # Domain(Int3(24, 24, 0), Props(0, -1, 0)),
+    ]
+
+    system = find_boundaries(size, domains)
 
     pre = OperationSequence([
-        MkDirs(DirOut(working_dir)),
+        MkDirs(DirOut(working_dir, [dir_doesnt_exist])),
         MkDirs(DirOut(coord_dir)),
         MkDirs(DirOut(dipoRavg_dir)),
-        Cd(DirIn(working_dir))
+        Cd(DirIn(working_dir)),
+        Write(FileOut(localfield),
+              lambda: '\n'.join(generate_localfield(system)))
     ])
 
     def step(temperature: int) -> OperationSequence:
@@ -94,8 +110,8 @@ def run(runner: Runner, temp_config: TempConfig) -> Result[Any, str]:
     ])
 
     return all.run().and_then(
-        lambda _: Ok('Temperature: Success')).map_err(
-        lambda _: 'Temperature: Failure')
+        lambda _: Ok('MultidomainTemp: Success')).map_err(
+        lambda _: 'MultidomainTemp: Failure')
 
 
 def post_process(runner: Runner, config: TempConfig) -> pl.DataFrame:
@@ -123,14 +139,14 @@ def post_process(runner: Runner, config: TempConfig) -> pl.DataFrame:
 
 
 if __name__ == "__main__":
-    CUSTOM_FERAM_BIN = Path.home() / 'feram_dev/build/src/feram'
+    CUSTOM_FERAM_BIN = Path.home() / 'Code/git/feram-0.26.04_dev/build/src/feram'
 
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d")
 
     runner = Runner(
-        sim_name    = 'bst',
+        sim_name    = 'bto',
         feram_path  = CUSTOM_FERAM_BIN,
-        working_dir = project_root() / 'output' / 'demo',
+        working_dir = project_root() / 'output' / f'multidomain_temp_{timestamp}',
     )
 
     config = TempConfig(
@@ -138,7 +154,7 @@ if __name__ == "__main__":
             setup = merge_setups([
                 General(
                     verbose      = 4,
-                    L            = Vec3(3, 3, 2),
+                    L            = Vec3(3, 3, 3),
                     n_thermalize = 4,
                     n_average = 2,
                     n_coord_freq = 6,
@@ -151,9 +167,11 @@ if __name__ == "__main__":
                 #     epi_strain = Vec3(0.01, 0.01, 0)
                 # )
             ]),
-            material = BST
+            material = BTO
         ),
-        temperatures = Temp(initial=50, final=40, delta=-5)
+        temperatures = Temp(initial=350, final=340, delta=-5)
     )
+
+    ###### multidomain is defined in def run ######
 
     print(colorize(run(runner, config)))
