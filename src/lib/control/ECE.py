@@ -52,10 +52,10 @@ def run(runner: Runner, ece_config: ECEConfig) -> Result[Any, str]:
                     Feram(Exec(feram_bin),
                           FileIn(feram_file))),
             copy_restart,
-            WriteOvitoDump(FileOut(working_dir / f'coords_{dir_cur.name}.ovito'),
+            WriteOvitoDump(FileOut(working_dir / f'coords_{dir_cur.name}.ovt'),
                            DirIn(dir_cur),
                            'coord'),
-            WriteOvitoDump(FileOut(working_dir / f'dipoRavgs_{dir_cur.name}.ovito'),
+            WriteOvitoDump(FileOut(working_dir / f'dipoRavgs_{dir_cur.name}.ovt'),
                            DirIn(dir_cur),
                            'dipoRavg')
         ])
@@ -69,10 +69,10 @@ def run(runner: Runner, ece_config: ECEConfig) -> Result[Any, str]:
     steps_all = reduce(reducer, step_zip, OperationSequence())
 
     post = OperationSequence([
-        WriteParquet(FileOut(working_dir / f'{working_dir.name}.parquet'),
-                     lambda: post_process(runner, ece_config)),
         Copy(FileIn(Path(__file__)),
              FileOut(working_dir / 'AutoFeram_control.py')),
+        WriteParquet(FileOut(working_dir / f'{working_dir.name}.parquet'),
+                     lambda: post_process(runner, ece_config)),
         Archive(DirIn(working_dir),
                 FileOut(project_root() / 'output' / f'{working_dir.name}.tar.gz'))
     ])
