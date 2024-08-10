@@ -289,7 +289,7 @@ class Feram(Operation):
         ).map(lambda _: f'Feram: success').map_err(lambda x: f'Feram: {x}')
 
 
-class OperationSequence:
+class OperationSequence(Operation):
     def __init__(self, operations: Sequence[Operation] = []) -> None:
         self.operations = operations
 
@@ -299,7 +299,8 @@ class OperationSequence:
                       self.operations[0].run())
 
     def __iter__(self) -> Iterator:
-        return iter(self.operations)
+        yield self.run()
+        # return iter(self.operations)
 
     def __add__(self, other):
         return OperationSequence(self.operations + other.operations)

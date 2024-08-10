@@ -88,9 +88,9 @@ def run(runner: Runner, temp_config: TempConfig) -> Result[Any, str]:
     ])
 
     all = OperationSequence([
-        *pre,
-        *steps,
-        *post
+        pre,
+        steps,
+        post
     ])
 
     return all.run().and_then(

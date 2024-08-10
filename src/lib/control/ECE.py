@@ -78,9 +78,9 @@ def run(runner: Runner, ece_config: ECEConfig) -> Result[Any, str]:
     ])
 
     all = OperationSequence([
-        *pre,
-        *steps_all,
-        *post
+        pre,
+        steps_all,
+        post
     ])
 
     return all.run().and_then(
@@ -135,7 +135,7 @@ if __name__ == "__main__":
 
     runner = Runner(
         sim_name    = 'bto',
-        feram_path  = CUSTOM_FERAM_BIN,
+        feram_path  = feram_with_fallback(CUSTOM_FERAM_BIN),
         working_dir = project_root() / 'output' / f'ece_{timestamp}',
     )
 
