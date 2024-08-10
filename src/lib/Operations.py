@@ -8,7 +8,7 @@ from functools import reduce
 from pathlib import Path
 from enum import Enum
 from result import Result, Ok, Err, as_result, do
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from typing import Any, Self, TypeAlias
 
 from src.lib.Util import project_root
@@ -96,6 +96,9 @@ class Operation:
     def __init__(self, operation: Callable[[], Result[Any, str]]) -> None:
         self.operation = operation
 
+    def __iter__(self) -> Iterator:
+        yield self.run()
+
     def run(self) -> Result[Any, str]:
         res = self.operation()
         color_res = colors.color(res, 'gray') if res.is_ok() else colors.red(res)
@@ -105,10 +108,7 @@ class Operation:
 
 class Empty(Operation):
     def __init__(self) -> None:
-        super().__init__(lambda: self.do())
-
-    def do(self) -> Result[Any, str]:
-        return Ok(f'Empty')
+        super().__init__(lambda: Ok(f'Empty'))
 
 
 class MkDirs(Operation):
@@ -140,9 +140,9 @@ class WithDir(Operation):
     def do(self, return_dir: DirIn, working_dir: DirIn, operation: Operation) -> Result[Any, str]:
         return do(
             Ok(dir_from)
-            for _ in Cd(working_dir).run()
-            for _ in operation.run()
-            for dir_from in Cd(return_dir).run()
+            for _ in Cd(working_dir)
+            for _ in operation
+            for dir_from in Cd(return_dir)
         ).map(lambda _: f'WithDir: {rel_to_project_root(working_dir.path)}').map_err(lambda x: f'WithDir: {str(x)}')
 
 
@@ -241,7 +241,7 @@ class WriteParquet(Operation):
         super().__init__(lambda: self.do(file, get_df))
 
     @as_result(Exception)
-    def safe_write_parquet(self, file: FileOut, df: pl.DataFrame):
+    def safe_write_parquet(self, file: FileOut, df: pl.DataFrame) -> None:
         df.write_parquet(file.path)
 
     def do(self, file: FileOut, get_df: Callable[[], pl.DataFrame]) -> Result[Any, str]:
@@ -258,7 +258,7 @@ class Archive(Operation):
         super().__init__(lambda: self.do(src, dst))
 
     @as_result(Exception)
-    def safe_archive(self, src, dst):
+    def safe_archive(self, src, dst) -> None:
         with tarfile.open(dst.path, 'w:gz') as tar:
             tar.add(src.path, arcname=src.path.name)
 
@@ -298,7 +298,7 @@ class OperationSequence:
                       self.operations[1:],
                       self.operations[0].run())
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator:
         return iter(self.operations)
 
     def __add__(self, other):
