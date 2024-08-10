@@ -1,10 +1,10 @@
 from functools import reduce
 from dataclasses import dataclass, asdict
 from enum import StrEnum
-from collections.abc import Generator, Sequence, Mapping
+from collections.abc import Iterator, Sequence
 from typing import Any, NamedTuple, TypeAlias
 
-from src.lib.common import Vec3, Vec7
+from src.lib.common import Int3, Vec3, Vec7
 
 
 class Method(StrEnum):
@@ -27,7 +27,7 @@ class Setup:
 class General(Setup):
     method: Method              = Method.MD
     bulk_or_film: Structure     = Structure.Bulk
-    L: Vec3[int]                = Vec3(36, 36, 36)
+    L: Int3                     = Int3(36, 36, 36)
     dt: float                   = 0.002
 
     # temperature and pressure control
@@ -122,7 +122,7 @@ class FeramConfig:
         def generate_key_val(k: str, v: str):
             return f'{k} = {v}'
 
-        def file_generator() -> Generator[str, None, None]:
+        def file_generator() -> Iterator[str]:
             for k, v in asdict(self).items():
                 yield f'# {k}'
 

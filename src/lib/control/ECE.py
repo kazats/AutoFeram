@@ -120,7 +120,7 @@ if __name__ == "__main__":
     CUSTOM_FERAM_BIN = Path.home() / 'feram_dev/build/src/feram'
 
     material       = BTO
-    size           = Vec3(2, 2, 2)
+    size           = Int3(2, 2, 2)
     temperature    = 200
     efield_initial = Vec3(0.001, 0, 0)
     efield_final   = Vec3[float](0, 0, 0)

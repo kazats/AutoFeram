@@ -1,6 +1,6 @@
 import colors
 from result import Result
-from typing import Generic, NamedTuple, TypeVar
+from typing import Generic, NamedTuple, TypeAlias, TypeVar
 
 
 BoltzmannConst: float = 8.617e-5
@@ -15,6 +15,8 @@ class Vec3(NamedTuple, Generic[T1]):
 
     def __str__(self) -> str:
         return f'{self.x} {self.y} {self.z}'
+
+Int3: TypeAlias = Vec3[int]
 
 class Vec7(NamedTuple, Generic[T1]):
     x1: T1

@@ -108,7 +108,10 @@ class Operation:
 
 class Empty(Operation):
     def __init__(self) -> None:
-        super().__init__(lambda: Ok(f'Empty'))
+        pass
+
+    def run(self) -> Result[Any, str]:
+        return Ok('Empty')
 
 
 class MkDirs(Operation):
@@ -295,8 +298,8 @@ class OperationSequence(Operation):
 
     def run(self) -> Result[Any, str]:
         return reduce(lambda op, next_op: op.and_then(lambda _: next_op.run()),
-                      self.operations[1:],
-                      self.operations[0].run())
+                      self.operations,
+                      Empty().run())
 
     def __iter__(self) -> Iterator:
         yield self.run()

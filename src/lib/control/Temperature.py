@@ -15,14 +15,14 @@ from src.lib.Ovito import WriteOvitoDump
 from src.lib.Util import feram_with_fallback, project_root
 
 
-class Temp(NamedTuple):
+class TempRange(NamedTuple):
     initial: int
     final: int
     delta: int
 
 class TempConfig(NamedTuple):
     config: FeramConfig
-    temperatures: Temp
+    temperatures: TempRange
 
 
 def run(runner: Runner, temp_config: TempConfig) -> Result[Any, str]:
@@ -140,7 +140,7 @@ if __name__ == "__main__":
                     verbose      = 4,
                     L            = Vec3(36, 36, 36),
                     # n_thermalize = 4,
-                    # n_average = 2,
+                    # n_average    = 2,
                     # n_coord_freq = 6,
                     bulk_or_film = Structure.Bulk
                 ),
@@ -153,7 +153,7 @@ if __name__ == "__main__":
             ]),
             material = BTO
         ),
-        temperatures = Temp(initial=350, final=50, delta=-5)
+        temperatures = TempRange(initial = 350, final = 50, delta = -5)
     )
 
     print(colorize(run(runner, config)))

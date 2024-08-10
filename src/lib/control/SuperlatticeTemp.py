@@ -7,7 +7,7 @@ from typing import NamedTuple
 
 from src.lib.Domain import *
 from src.lib.control.common import Runner
-from src.lib.common import BoltzmannConst, Vec3, colorize
+from src.lib.common import BoltzmannConst, Int3, colorize
 from src.lib.materials.BST import BST
 from src.lib.Config import *
 from src.lib.Log import *
@@ -16,14 +16,14 @@ from src.lib.Ovito import WriteOvitoDump
 from src.lib.Util import feram_with_fallback, project_root
 
 
-class Temp(NamedTuple):
+class TempRange(NamedTuple):
     initial: int
     final: int
     delta: int
 
 class TempConfig(NamedTuple):
     config: FeramConfig
-    temperatures: Temp
+    temperatures: TempRange
 
 
 def run(runner: Runner, temp_config: TempConfig) -> Result[Any, str]:
@@ -146,9 +146,9 @@ if __name__ == "__main__":
             setup = merge_setups([
                 General(
                     verbose      = 4,
-                    L            = Vec3(3, 3, 3),
+                    L            = Int3(3, 3, 3),
                     n_thermalize = 4,
-                    n_average = 2,
+                    n_average    = 2,
                     n_coord_freq = 6,
                     bulk_or_film = Structure.Bulk
                 ),
@@ -161,7 +161,7 @@ if __name__ == "__main__":
             ]),
             material = BST
         ),
-        temperatures = Temp(initial=350, final=340, delta=-5)
+        temperatures = TempRange(initial = 350, final = 340, delta = -5)
     )
 
     ###### superlattice (bto_sto) is defined in def run ######
