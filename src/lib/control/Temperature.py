@@ -106,9 +106,9 @@ def post_process(runner: Runner, config: TempConfig) -> pl.DataFrame:
 
     df = pl.DataFrame(log.time_steps,
                       schema_overrides = {
-                      'u': pl.List(pl.Float64),
+                      'u':       pl.List(pl.Float64),
                       'u_sigma': pl.List(pl.Float64),
-                      'p': pl.List(pl.Float64),
+                      'p':       pl.List(pl.Float64),
                       'p_sigma': pl.List(pl.Float64),
                       })
 

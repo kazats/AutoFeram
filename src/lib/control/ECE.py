@@ -96,9 +96,9 @@ def post_process(runner: Runner, config: ECEConfig) -> pl.DataFrame:
         log = parse_log(read_log(working_dir / step_dir / log_name))
         df  = pl.DataFrame(log.time_steps,
                            schema_overrides = {
-                           'u': pl.List(pl.Float64),
+                           'u':       pl.List(pl.Float64),
                            'u_sigma': pl.List(pl.Float64),
-                           'p': pl.List(pl.Float64),
+                           'p':       pl.List(pl.Float64),
                            'p_sigma': pl.List(pl.Float64),
                            })
 
