@@ -10,6 +10,7 @@ from src.lib.control.common import Runner
 from src.lib.common import BoltzmannConst, Vec3, colorize
 from src.lib.materials.BTO import BTO
 from src.lib.Config import *
+from src.lib.Domain import *
 from src.lib.Log import *
 from src.lib.Operations import *
 from src.lib.Ovito import WriteOvitoDump
@@ -33,7 +34,7 @@ def run(runner: Runner, ece_config: ECEConfig) -> Result[Any, str]:
     sim_name, working_dir, feram_bin = runner
 
     pre = OperationSequence([
-        MkDirs(DirOut(working_dir)),
+        MkDirs(DirOut(working_dir, preconditions=[dir_doesnt_exist])),
         *[MkDirs(DirOut(working_dir / step_dir)) for step_dir in ece_config.steps.keys()]
     ])
 
@@ -102,6 +103,15 @@ def post_process(runner: Runner, config: ECEConfig) -> pl.DataFrame:
                            'p_sigma': pl.List(pl.Float64),
                            })
 
+        df = df.with_columns(pl.col('u').list.to_struct().struct.rename_fields(['u_x', 'u_y', 'u_z']),
+                             pl.col('u_sigma').list.to_struct().struct.rename_fields(['u_sigma_x', 'u_sigma_y', 'u_sigma_z']),
+                             pl.col('p').list.to_struct().struct.rename_fields(['p_x', 'p_y', 'p_z']),
+                             pl.col('p_sigma').list.to_struct().struct.rename_fields(['p_sigma_x', 'p_sigma_y', 'p_sigma_z']))\
+        .unnest('u')\
+        .unnest('u_sigma')\
+        .unnest('p')\
+        .unnest('p_sigma')
+
         return df.with_columns(
             step  = pl.lit(step_dir),
             dt_fs = pl.lit(setup['dt'] * 1000)
@@ -135,7 +145,7 @@ if __name__ == "__main__":
 
     runner = Runner(
         sim_name    = 'bto',
-        feram_path  = feram_with_fallback(CUSTOM_FERAM_BIN),
+        feram_path  = CUSTOM_FERAM_BIN,
         working_dir = project_root() / 'output' / f'ece_{timestamp}',
     )
 
