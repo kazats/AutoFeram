@@ -44,7 +44,7 @@ def dir_exists(path: Path) -> PreconditionReturn:
         return Err(f'No such directory: {rel_to_project_root(path)}')
 
 def dir_doesnt_exist(path: Path) -> PreconditionReturn:
-    if not path.exists:
+    if not path.exists():
         return Ok(path)
     else:
         return Err(f'Directory already exists: {rel_to_project_root(path)}')
