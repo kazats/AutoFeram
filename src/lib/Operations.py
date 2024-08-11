@@ -8,7 +8,7 @@ from functools import reduce
 from pathlib import Path
 from enum import Enum
 from result import Result, Ok, Err, as_result, do
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from typing import Any, Self, TypeAlias
 
 from src.lib.Util import project_root
@@ -32,19 +32,19 @@ PreconditionReturn: TypeAlias = Result[Path, str]
 Precondition: TypeAlias = Callable[[Path], PreconditionReturn]
 
 def file_exists(path: Path) -> PreconditionReturn:
-    if os.path.isfile(path):
+    if path.is_file():
         return Ok(path)
     else:
         return Err(f'No such file: {rel_to_project_root(path)}')
 
 def dir_exists(path: Path) -> PreconditionReturn:
-    if os.path.isdir(path):
+    if path.is_dir():
         return Ok(path)
     else:
         return Err(f'No such directory: {rel_to_project_root(path)}')
 
 def dir_doesnt_exist(path: Path) -> PreconditionReturn:
-    if not os.path.isdir(path):
+    if not path.exists:
         return Ok(path)
     else:
         return Err(f'Directory already exists: {rel_to_project_root(path)}')
@@ -96,6 +96,9 @@ class Operation:
     def __init__(self, operation: Callable[[], Result[Any, str]]) -> None:
         self.operation = operation
 
+    def __iter__(self) -> Iterator:
+        yield self.run()
+
     def run(self) -> Result[Any, str]:
         res = self.operation()
         color_res = colors.color(res, 'gray') if res.is_ok() else colors.red(res)
@@ -105,10 +108,10 @@ class Operation:
 
 class Empty(Operation):
     def __init__(self) -> None:
-        super().__init__(lambda: self.do())
+        pass
 
-    def do(self) -> Result[Any, str]:
-        return Ok(f'Empty')
+    def run(self) -> Result[Any, str]:
+        return Ok('Empty')
 
 
 class MkDirs(Operation):
@@ -117,7 +120,7 @@ class MkDirs(Operation):
 
     def do(self, path: DirOut) -> Result[Any, str]:
         return do(
-            as_result(FileExistsError)(os.makedirs)(checked.path, mode=0o755, exist_ok=True)
+            as_result(FileExistsError)(checked.path.mkdir)(mode=0o755, parents=True, exist_ok=True)
             for checked in path.check_preconditions()
         ).map(lambda _: f'MkDirs: {path.path}').map_err(lambda x: f'MkDirs: {x}')
 
@@ -140,9 +143,9 @@ class WithDir(Operation):
     def do(self, return_dir: DirIn, working_dir: DirIn, operation: Operation) -> Result[Any, str]:
         return do(
             Ok(dir_from)
-            for _ in Cd(working_dir).run()
-            for _ in operation.run()
-            for dir_from in Cd(return_dir).run()
+            for _ in Cd(working_dir)
+            for _ in operation
+            for dir_from in Cd(return_dir)
         ).map(lambda _: f'WithDir: {rel_to_project_root(working_dir.path)}').map_err(lambda x: f'WithDir: {str(x)}')
 
 
@@ -152,7 +155,7 @@ class Remove(Operation):
 
     def do(self, file: FileIn) -> Result[Any, str]:
         return do(
-            as_result(OSError)(os.remove)(checked.path)
+            as_result(Exception)(checked.path.unlink)()
             for checked in file.check_preconditions()
         ).map(lambda _: f'Remove: {rel_to_project_root(file.path)}').map_err(lambda x: f'Remove: {str(x)}')
 
@@ -163,7 +166,7 @@ class Rename(Operation):
 
     def do(self, src: FileIn | DirIn, dst: FileOut | DirOut) -> Result[Any, str]:
         return do(
-            as_result(OSError)(os.rename)(checked_src.path, dst.path)
+            as_result(Exception)(checked_src.path.rename)(dst.path)
             for checked_src in src.check_preconditions()
         ).map(lambda _: f'Rename: {rel_to_project_root(src.path)} >> {rel_to_project_root(dst.path)}').map_err(lambda x: f'Rename: {str(x)}')
 
@@ -206,9 +209,8 @@ class Append(Operation):
 
     @as_result(Exception)
     def safe_append(self, path_in: FileIn, path_out: FileOut):
-        with open(path_in.path, 'r') as inf,\
-            open(path_out.path, 'a') as outf:
-            outf.write(inf.read())
+        with open(path_out.path, 'a') as outf:
+            outf.write(path_in.path.read_text())
 
     def do(self, path_in: FileIn, path_out: FileOut) -> Result[Any, str]:
         return do(
@@ -225,14 +227,14 @@ class Write(Operation):
 
     @as_result(Exception)
     def safe_write(self, file: FileOut, content: str):
-        with open(file.path, 'w') as outf:
-            outf.write(content)
+        file.path.write_text(content)
+        # with open(file.path, 'w') as outf:
+        #     outf.write(content)
 
     def do(self, file: FileOut, get_content: Callable[[], str]) -> Result[Any, str]:
         return do(
-            Ok(res)
+            self.safe_write(checked_out, get_content())
             for checked_out in file.check_preconditions()
-            for res in self.safe_write(checked_out, get_content())
         ).map(lambda _: f'Write: {rel_to_project_root(file.path)}').map_err(lambda x: f'Write: {x}')
 
 
@@ -241,15 +243,14 @@ class WriteParquet(Operation):
         super().__init__(lambda: self.do(file, get_df))
 
     @as_result(Exception)
-    def safe_write_parquet(self, file: FileOut, df: pl.DataFrame):
+    def safe_write_parquet(self, file: FileOut, df: pl.DataFrame) -> None:
         df.write_parquet(file.path)
 
     def do(self, file: FileOut, get_df: Callable[[], pl.DataFrame]) -> Result[Any, str]:
         return do(
-            Ok(res)
+            self.safe_write_parquet(checked_out, get_df())
             # TODO: check input files
             for checked_out in file.check_preconditions()
-            for res in self.safe_write_parquet(checked_out, get_df())
         ).map(lambda _: f'WriteParquet: {rel_to_project_root(file.path)}').map_err(lambda x: f'WriteParquet: {x}')
 
 
@@ -258,7 +259,7 @@ class Archive(Operation):
         super().__init__(lambda: self.do(src, dst))
 
     @as_result(Exception)
-    def safe_archive(self, src, dst):
+    def safe_archive(self, src, dst) -> None:
         with tarfile.open(dst.path, 'w:gz') as tar:
             tar.add(src.path, arcname=src.path.name)
 
@@ -289,24 +290,24 @@ class Feram(Operation):
         ).map(lambda _: f'Feram: success').map_err(lambda x: f'Feram: {x}')
 
 
-class OperationSequence:
+class OperationSequence(Operation):
     def __init__(self, operations: Sequence[Operation] = []) -> None:
         self.operations = operations
 
     def run(self) -> Result[Any, str]:
         return reduce(lambda op, next_op: op.and_then(lambda _: next_op.run()),
-                      self.operations[1:],
-                      self.operations[0].run())
+                      self.operations,
+                      Empty().run())
 
-    def __iter__(self):
-        return iter(self.operations)
+    def __iter__(self) -> Iterator:
+        yield self.run()
+        # return iter(self.operations)
 
     def __add__(self, other):
         return OperationSequence(self.operations + other.operations)
 
 
-if __name__ == '__main__':
-    pass
+# if __name__ == '__main__':
     # FERAM_BIN = Path.home() / 'Code' / 'git' / 'AutoFeram' / 'feram-0.26.04' / 'build_20240401' / 'src' / 'feram'
     # FERAM_BIN = Path(cast(str, shutil.which('feram')))
 

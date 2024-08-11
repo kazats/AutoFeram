@@ -15,14 +15,14 @@ from src.lib.Ovito import WriteOvitoDump
 from src.lib.Util import feram_with_fallback, project_root
 
 
-class Temp(NamedTuple):
+class TempRange(NamedTuple):
     initial: int
     final: int
     delta: int
 
 class TempConfig(NamedTuple):
     config: FeramConfig
-    temperatures: Temp
+    temperatures: TempRange
 
 
 def run(runner: Runner, temp_config: TempConfig) -> Result[Any, str]:
@@ -88,9 +88,9 @@ def run(runner: Runner, temp_config: TempConfig) -> Result[Any, str]:
     ])
 
     all = OperationSequence([
-        *pre,
-        *steps,
-        *post
+        pre,
+        steps,
+        post
     ])
 
     return all.run().and_then(
@@ -106,9 +106,9 @@ def post_process(runner: Runner, config: TempConfig) -> pl.DataFrame:
 
     df = pl.DataFrame(log.time_steps,
                       schema_overrides = {
-                      'u': pl.List(pl.Float64),
+                      'u':       pl.List(pl.Float64),
                       'u_sigma': pl.List(pl.Float64),
-                      'p': pl.List(pl.Float64),
+                      'p':       pl.List(pl.Float64),
                       'p_sigma': pl.List(pl.Float64),
                       })
 
@@ -138,10 +138,10 @@ if __name__ == "__main__":
             setup = merge_setups([
                 General(
                     verbose      = 4,
-                    L            = Vec3(3, 3, 2),
-                    n_thermalize = 4,
-                    n_average = 2,
-                    n_coord_freq = 6,
+                    L            = Vec3(36, 36, 36),
+                    # n_thermalize = 4,
+                    # n_average    = 2,
+                    # n_coord_freq = 6,
                     bulk_or_film = Structure.Bulk
                 ),
                 # EFieldStatic(
@@ -153,7 +153,7 @@ if __name__ == "__main__":
             ]),
             material = BST
         ),
-        temperatures = Temp(initial=50, final=40, delta=-5)
+        temperatures = TempRange(initial = 350, final = 50, delta = -5)
     )
 
     print(colorize(run(runner, config)))

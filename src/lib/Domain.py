@@ -16,11 +16,11 @@ from collections import Counter
 from typing import NamedTuple, TypeAlias, Iterator, Optional
 from itertools import accumulate
 
-from src.lib.common import Vec3
+from src.lib.common import Int3, Vec3
+from src.lib.Operations import Write, FileOut
 from src.lib.Util import project_root
 
 
-Int3:  TypeAlias = Vec3[int]
 Props: TypeAlias = Vec3[float]
 
 class Domain(NamedTuple):
@@ -95,7 +95,7 @@ class System:
         return (max_domain[0], max_domain[1] / neighbor_domain_count.total())
 
 
-def find_closest_domain(domains: list[Domain], coord: Int3) -> Domain:
+def find_closest_domain(domains: Sequence[Domain], coord: Int3) -> Domain:
     def distance(p1: Int3, p2: Int3) -> np.floating:
         return np.linalg.norm(np.fromiter(p1, int) - np.fromiter(p2, int))
 
@@ -116,7 +116,7 @@ def generate_coords(size: Int3) -> list[Int3]:
     ]
 
 
-def find_boundaries(size: Int3, domains: list[Domain]) -> PointMap:
+def find_boundaries(size: Int3, domains: Sequence[Domain]) -> PointMap:
     coords: list[Int3] = generate_coords(size)
     system: System = System(
         size,
@@ -139,6 +139,10 @@ def generate_localfield(system: PointMap) -> Iterator[str]:
         x, y, z = coord
         px, py, pz = point.domain.props
         yield f'{x} {y} {z} {px} {py} {pz}'
+
+def LocalfieldWriter(output_path: Path, size: Int3, domains: Sequence[Domain]):
+    return Write(FileOut(output_path),
+                 lambda: '\n'.join(generate_localfield(find_boundaries(size, domains))))
 
 
 def generate_defects(system: PointMap) -> Iterator[str]:
@@ -165,25 +169,26 @@ def generate_modulation(coords: list[Int3], bto_sto: tuple[int, int]) -> Iterato
 
 
 if __name__ == '__main__':
-    working_dir = project_root() / 'output' / 'domain'
-
-    size = Int3(2, 1, 6)
-
-    domains = [
-        Domain(Int3(0, 0, 0), Props(0, 0, 0)),
-        Domain(Int3(1, 0, 0), Props(0, 1, 0)),
-        # Domain(Int3(12, 47, 0), Props(1, 0, 0)),
-        # Domain(Int3(24, 24, 0), Props(0, -1, 0)),
-    ]
-
-    system = find_boundaries(size, domains)
-
-    ##### get .modulation: for superlattices
-    # BTO_STO = (1, 2)
-    # bto_modulation = generate_bto_modulation(generate_coords(size), BTO_STO)
-    # print('\n'.join(generate_modulation(generate_coords(size), BTO_STO)))
-
-    ##### get .localfield and .defects: for multidomains
-    # [ f(working_dir, system) for f in [write_bto_localfield, write_bto_defects] ]
-
-    print('\n'.join(generate_defects(system)))
+    pass
+    # working_dir = project_root() / 'output' / 'domain'
+    #
+    # size = Int3(2, 1, 6)
+    #
+    # domains = [
+    #     Domain(Int3(0, 0, 0), Props(0, 0, 0)),
+    #     Domain(Int3(1, 0, 0), Props(0, 1, 0)),
+    #     # Domain(Int3(12, 47, 0), Props(1, 0, 0)),
+    #     # Domain(Int3(24, 24, 0), Props(0, -1, 0)),
+    # ]
+    #
+    # system = find_boundaries(size, domains)
+    #
+    # ##### get .modulation: for superlattices
+    # # BTO_STO = (1, 2)
+    # # bto_modulation = generate_bto_modulation(generate_coords(size), BTO_STO)
+    # # print('\n'.join(generate_modulation(generate_coords(size), BTO_STO)))
+    #
+    # ##### get .localfield and .defects: for multidomains
+    # # [ f(working_dir, system) for f in [write_bto_localfield, write_bto_defects] ]
+    #
+    # print('\n'.join(generate_defects(system)))

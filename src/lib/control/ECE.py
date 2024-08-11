@@ -52,10 +52,10 @@ def run(runner: Runner, ece_config: ECEConfig) -> Result[Any, str]:
                     Feram(Exec(feram_bin),
                           FileIn(feram_file))),
             copy_restart,
-            WriteOvitoDump(FileOut(working_dir / f'coords_{dir_cur.name}.ovito'),
+            WriteOvitoDump(FileOut(working_dir / f'coords_{dir_cur.name}.ovt'),
                            DirIn(dir_cur),
                            'coord'),
-            WriteOvitoDump(FileOut(working_dir / f'dipoRavgs_{dir_cur.name}.ovito'),
+            WriteOvitoDump(FileOut(working_dir / f'dipoRavgs_{dir_cur.name}.ovt'),
                            DirIn(dir_cur),
                            'dipoRavg')
         ])
@@ -69,18 +69,18 @@ def run(runner: Runner, ece_config: ECEConfig) -> Result[Any, str]:
     steps_all = reduce(reducer, step_zip, OperationSequence())
 
     post = OperationSequence([
-        WriteParquet(FileOut(working_dir / f'{working_dir.name}.parquet'),
-                     lambda: post_process(runner, ece_config)),
         Copy(FileIn(Path(__file__)),
              FileOut(working_dir / 'AutoFeram_control.py')),
+        WriteParquet(FileOut(working_dir / f'{working_dir.name}.parquet'),
+                     lambda: post_process(runner, ece_config)),
         Archive(DirIn(working_dir),
                 FileOut(project_root() / 'output' / f'{working_dir.name}.tar.gz'))
     ])
 
     all = OperationSequence([
-        *pre,
-        *steps_all,
-        *post
+        pre,
+        steps_all,
+        post
     ])
 
     return all.run().and_then(
@@ -96,9 +96,9 @@ def post_process(runner: Runner, config: ECEConfig) -> pl.DataFrame:
         log = parse_log(read_log(working_dir / step_dir / log_name))
         df  = pl.DataFrame(log.time_steps,
                            schema_overrides = {
-                           'u': pl.List(pl.Float64),
+                           'u':       pl.List(pl.Float64),
                            'u_sigma': pl.List(pl.Float64),
-                           'p': pl.List(pl.Float64),
+                           'p':       pl.List(pl.Float64),
                            'p_sigma': pl.List(pl.Float64),
                            })
 
@@ -120,7 +120,7 @@ if __name__ == "__main__":
     CUSTOM_FERAM_BIN = Path.home() / 'feram_dev/build/src/feram'
 
     material       = BTO
-    size           = Vec3(2, 2, 2)
+    size           = Int3(2, 2, 2)
     temperature    = 200
     efield_initial = Vec3(0.001, 0, 0)
     efield_final   = Vec3[float](0, 0, 0)
@@ -135,7 +135,7 @@ if __name__ == "__main__":
 
     runner = Runner(
         sim_name    = 'bto',
-        feram_path  = CUSTOM_FERAM_BIN,
+        feram_path  = feram_with_fallback(CUSTOM_FERAM_BIN),
         working_dir = project_root() / 'output' / f'ece_{timestamp}',
     )
 
