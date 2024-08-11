@@ -5,28 +5,28 @@ from pathlib import Path
 from itertools import accumulate
 from typing import NamedTuple
 
-from src.lib.Domain import *
 from src.lib.control.common import Runner
-from src.lib.common import BoltzmannConst, Vec3, colorize
+from src.lib.common import BoltzmannConst, colorize
 from src.lib.materials.BTO import BTO
 from src.lib.Config import *
+from src.lib.Domain import *
 from src.lib.Log import *
 from src.lib.Operations import *
 from src.lib.Ovito import WriteOvitoDump
 from src.lib.Util import feram_with_fallback, project_root
 
 
-class Temp(NamedTuple):
+class TempRange(NamedTuple):
     initial: int
     final: int
     delta: int
 
 class TempConfig(NamedTuple):
     config: FeramConfig
-    temperatures: Temp
+    temperatures: TempRange
 
 
-def run(runner: Runner, temp_config: TempConfig) -> Result[Any, str]:
+def run(runner: Runner, temp_config: TempConfig, add_pre: Operation = OperationSequence()) -> Result[Any, str]:
     sim_name, working_dir, feram_bin = runner
     config, temps = temp_config
 
@@ -38,27 +38,13 @@ def run(runner: Runner, temp_config: TempConfig) -> Result[Any, str]:
     dipoRavg_file   = working_dir / f'{sim_name}.dipoRavg'
     last_coord_file = working_dir / f'{sim_name}.{config.last_coord()}.coord'
     restart_file    = working_dir / f'{sim_name}.restart'
-    localfield      = working_dir / f'{sim_name}.localfield'
-
-    size = config.setup['L']
-
-    # define the position of domain, and their properties
-    domains = [
-        Domain(Int3(0, 0, 0), Props(0, 0, 0)),
-        Domain(Int3(1, 0, 0), Props(0, 1, 0)),
-        # Domain(Int3(12, 47, 0), Props(1, 0, 0)),
-        # Domain(Int3(24, 24, 0), Props(0, -1, 0)),
-    ]
-
-    system = find_boundaries(size, domains)
 
     pre = OperationSequence([
-        MkDirs(DirOut(working_dir, [dir_doesnt_exist])),
+        MkDirs(DirOut(working_dir)),
         MkDirs(DirOut(coord_dir)),
         MkDirs(DirOut(dipoRavg_dir)),
         Cd(DirIn(working_dir)),
-        Write(FileOut(localfield),
-              lambda: '\n'.join(generate_localfield(system)))
+        add_pre,
     ])
 
     def step(temperature: int) -> OperationSequence:
@@ -128,6 +114,15 @@ def post_process(runner: Runner, config: TempConfig) -> pl.DataFrame:
                       'p_sigma': pl.List(pl.Float64),
                       })
 
+    df = df.with_columns(pl.col('u').list.to_struct().struct.rename_fields(['u_x', 'u_y', 'u_z']),
+                         pl.col('u_sigma').list.to_struct().struct.rename_fields(['u_sigma_x', 'u_sigma_y', 'u_sigma_z']),
+                         pl.col('p').list.to_struct().struct.rename_fields(['p_x', 'p_y', 'p_z']),
+                         pl.col('p_sigma').list.to_struct().struct.rename_fields(['p_sigma_x', 'p_sigma_y', 'p_sigma_z']))\
+    .unnest('u')\
+    .unnest('u_sigma')\
+    .unnest('p')\
+    .unnest('p_sigma')
+
     dt   = config.config.setup['dt'] * 1000
     time = accumulate(range(1, len(df)), lambda acc, _: acc + dt, initial=dt)
 
@@ -145,7 +140,7 @@ if __name__ == "__main__":
 
     runner = Runner(
         sim_name    = 'bto',
-        feram_path  = CUSTOM_FERAM_BIN,
+        feram_path  = feram_with_fallback(CUSTOM_FERAM_BIN),
         working_dir = project_root() / 'output' / f'multidomain_temp_{timestamp}',
     )
 
@@ -154,9 +149,9 @@ if __name__ == "__main__":
             setup = merge_setups([
                 General(
                     verbose      = 4,
-                    L            = Vec3(3, 3, 3),
+                    L            = Int3(3, 3, 3),
                     n_thermalize = 4,
-                    n_average = 2,
+                    n_average    = 2,
                     n_coord_freq = 6,
                     bulk_or_film = Structure.Bulk
                 ),
@@ -169,9 +164,16 @@ if __name__ == "__main__":
             ]),
             material = BTO
         ),
-        temperatures = Temp(initial=350, final=340, delta=-5)
+        temperatures = TempRange(initial = 350, final = 340, delta = -5)
     )
 
-    ###### multidomain is defined in def run ######
+    lf_writer = LocalfieldWriter(output_path = runner.working_dir / f'{runner.sim_name}.localfield',
+                                 size = config.config.setup['L'],
+                                 domains = [
+                                 Domain(Int3(0, 0, 0), Props(0, 0, 0)),
+                                 Domain(Int3(1, 0, 0), Props(0, 1, 0)),
+                                 # Domain(Int3(12, 47, 0), Props(1, 0, 0)),
+                                 # Domain(Int3(24, 24, 0), Props(0, -1, 0)),
+                                 ])
 
-    print(colorize(run(runner, config)))
+    print(colorize(run(runner, config, add_pre = lf_writer)))
