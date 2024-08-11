@@ -97,7 +97,7 @@ class Operation:
         self.operation = operation
 
     def __iter__(self) -> Iterator:
-        yield self.run()
+        return self.run().__iter__()
 
     def run(self) -> Result[Any, str]:
         res = self.operation()
@@ -277,7 +277,7 @@ class Feram(Operation):
     def __init__(self, feram_bin: Exec, feram_input: FileIn) -> None:
         super().__init__(lambda: self.do(feram_bin, feram_input))
 
-    def do(self, feram_bin: Exec, feram_input: FileIn):
+    def do(self, feram_bin: Exec, feram_input: FileIn) -> Result[Any, str]:
         return do(
             Ok(res)
             for checked_feram_bin in feram_bin.check_preconditions()
