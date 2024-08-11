@@ -114,6 +114,15 @@ def post_process(runner: Runner, config: TempConfig) -> pl.DataFrame:
                       'p_sigma': pl.List(pl.Float64),
                       })
 
+    df = df.with_columns(pl.col('u').list.to_struct().struct.rename_fields(['u_x', 'u_y', 'u_z']),
+                         pl.col('u_sigma').list.to_struct().struct.rename_fields(['u_sigma_x', 'u_sigma_y', 'u_sigma_z']),
+                         pl.col('p').list.to_struct().struct.rename_fields(['p_x', 'p_y', 'p_z']),
+                         pl.col('p_sigma').list.to_struct().struct.rename_fields(['p_sigma_x', 'p_sigma_y', 'p_sigma_z']))\
+    .unnest('u')\
+    .unnest('u_sigma')\
+    .unnest('p')\
+    .unnest('p_sigma')
+
     dt   = config.config.setup['dt'] * 1000
     time = accumulate(range(1, len(df)), lambda acc, _: acc + dt, initial=dt)
 
