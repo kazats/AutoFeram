@@ -101,10 +101,11 @@ def post_process(runner: Runner, config: ECEConfig) -> pl.DataFrame:
         )
 
     merged_df = pl.concat([mk_df(step_dir, setup) for step_dir, setup in config.steps.items()])
-    time      = accumulate(merged_df['dt_fs'], lambda acc, x: acc + x)
+    time      = pl.Series(accumulate(merged_df['dt_fs'], lambda acc, x: acc + x))
+    time_adj  = time - merged_df['dt_fs'][0]  # make time_fs start from 0
 
     return merged_df.with_columns(
-        time_fs = pl.Series(time),
+        time_fs = pl.Series(time_adj),
         kelvin  = pl.col('dipo_kinetic') / (1.5 * BoltzmannConst)
     )
 
