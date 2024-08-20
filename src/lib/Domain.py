@@ -167,6 +167,10 @@ def generate_modulation(coords: list[Int3], bto_sto: tuple[int, int]) -> Iterato
     return (f'{x} {y} {z} {assign_modulation(z, bto_sto)}'
         for x, y, z in coords)
 
+def ModulationWriter(output_path: Path, coords: list[Int3], bto_sto: tuple[int, int]):
+    return Write(FileOut(output_path),
+                 lambda: '\n'.join(generate_modulation(coords, bto_sto)))
+
 
 if __name__ == '__main__':
     pass

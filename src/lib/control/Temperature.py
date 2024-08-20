@@ -1,28 +1,16 @@
-import datetime
-import copy
 import polars as pl
+from copy import deepcopy
 from pathlib import Path
 from itertools import accumulate
-from typing import NamedTuple
 
-from src.lib.control.common import Runner
-from src.lib.common import BoltzmannConst, Vec3, colorize
+from src.lib.common import *
+from src.lib.control.common import *
 from src.lib.materials.BST import BST
 from src.lib.Config import *
 from src.lib.Log import *
 from src.lib.Operations import *
 from src.lib.Ovito import WriteOvitoDump
-from src.lib.Util import feram_with_fallback, project_root
-
-
-class TempRange(NamedTuple):
-    initial: int
-    final: int
-    delta: int
-
-class TempConfig(NamedTuple):
-    config: FeramConfig
-    temperatures: TempRange
+from src.lib.Util import *
 
 
 def run(runner: Runner, temp_config: TempConfig) -> Result[Any, str]:
@@ -49,42 +37,28 @@ def run(runner: Runner, temp_config: TempConfig) -> Result[Any, str]:
         temp_coord_file    = coord_dir / f'{temperature}.coord'
         temp_dipoRavg_file = dipoRavg_dir / f'{temperature}.dipoRavg'
 
-        step_config = copy.deepcopy(config)
+        step_config = deepcopy(config)
         step_config.setup['kelvin'] = temperature
 
         return OperationSequence([
-            Write(FileOut(feram_file),
-                  step_config.generate_feram_file),
-            Feram(Exec(feram_bin),
-                  FileIn(feram_file)),
-            Append(FileIn(avg_file),
-                   FileOut(thermo_file)),
+            Write(FileOut(feram_file), step_config.generate_feram_file),
+            Feram(Exec(feram_bin), FileIn(feram_file)),
+            Append(FileIn(avg_file), FileOut(thermo_file)),
             Remove(FileIn(avg_file)),
-            Rename(FileIn(dipoRavg_file),
-                   FileOut(temp_dipoRavg_file)),
-            Copy(FileIn(last_coord_file),
-                 FileOut(restart_file)),
-            Rename(FileIn(last_coord_file),
-                   FileOut(temp_coord_file)),
+            Rename(FileIn(dipoRavg_file), FileOut(temp_dipoRavg_file)),
+            Copy(FileIn(last_coord_file), FileOut(restart_file)),
+            Rename(FileIn(last_coord_file), FileOut(temp_coord_file)),
         ])
 
     steps = reduce(lambda acc, t: acc + step(t), range(*temps), OperationSequence())
 
     post = OperationSequence([
+        Copy(FileIn(Path(__file__)), FileOut(working_dir / 'AutoFeram_control.py')),
         Remove(FileIn(restart_file)),
-
-        WriteOvitoDump(FileOut(working_dir / 'coords.ovt'),
-                       DirIn(coord_dir),
-                       'coord'),
-        WriteOvitoDump(FileOut(working_dir / 'dipoRavgs.ovt'),
-                       DirIn(dipoRavg_dir),
-                       'dipoRavg'),
-        WriteParquet(FileOut(working_dir / f'{working_dir.name}.parquet'),
-                     lambda: post_process(runner, temp_config)),
-        Copy(FileIn(Path(__file__)),
-             FileOut(working_dir / 'AutoFeram_control.py')),
-        Archive(DirIn(working_dir),
-                FileOut(project_root() / 'output' / f'{working_dir.name}.tar.gz'))
+        WriteOvitoDump(FileOut(working_dir / 'coords.ovt'), DirIn(coord_dir), 'coord'),
+        WriteOvitoDump(FileOut(working_dir / 'dipoRavgs.ovt'), DirIn(dipoRavg_dir), 'dipoRavg'),
+        WriteParquet(FileOut(working_dir / f'{working_dir.name}.parquet'), lambda: post_process(runner, temp_config)),
+        Archive(DirIn(working_dir), FileOut(project_root() / 'output' / f'{working_dir.name}.tar.gz'))
     ])
 
     all = OperationSequence([
@@ -125,12 +99,10 @@ def post_process(runner: Runner, config: TempConfig) -> pl.DataFrame:
 if __name__ == "__main__":
     CUSTOM_FERAM_BIN = Path.home() / 'feram_dev/build/src/feram'
 
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d")
-
     runner = Runner(
         sim_name    = 'bst',
         feram_path  = CUSTOM_FERAM_BIN,
-        working_dir = project_root() / 'output' / 'demo',
+        working_dir = project_root() / 'output' / f'temperature_{timestamp()}',
     )
 
     config = TempConfig(

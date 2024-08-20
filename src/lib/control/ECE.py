@@ -1,34 +1,25 @@
-import datetime
 import polars as pl
 from pathlib import Path
 from functools import reduce
 from itertools import accumulate, zip_longest
-from collections.abc import Mapping
-from typing import NamedTuple
 
-from src.lib.control.common import Runner
-from src.lib.common import BoltzmannConst, Vec3, colorize
+from src.lib.common import *
+from src.lib.control.common import *
 from src.lib.materials.BTO import BTO
 from src.lib.Config import *
 from src.lib.Domain import *
 from src.lib.Log import *
 from src.lib.Operations import *
 from src.lib.Ovito import WriteOvitoDump
-from src.lib.Util import feram_with_fallback, project_root
-
-
-class ECEConfig(NamedTuple):
-    # (n_thermalize + n_average) % n_coord_freq must == 0
-    material: Material
-    steps:    Mapping[str, SetupDict]
+from src.lib.Util import *
 
 
 def run(runner: Runner, ece_config: ECEConfig) -> Result[Any, str]:
 
     def setup_with(setup: SetupDict) -> FeramConfig:
         return FeramConfig(
-            setup    = setup,
-            material = ece_config.material
+            material = ece_config.material,
+            setup    = setup
         )
 
     sim_name, working_dir, feram_bin = runner
@@ -46,19 +37,12 @@ def run(runner: Runner, ece_config: ECEConfig) -> Result[Any, str]:
                                FileOut(dir_next / f'{sim_name}.restart')) if dir_next is not Any else Empty()
 
         return OperationSequence([
-            Write(FileOut(feram_file),
-                  config.generate_feram_file),
-            WithDir(DirIn(working_dir),
-                    DirIn(dir_cur),
-                    Feram(Exec(feram_bin),
-                          FileIn(feram_file))),
+            Write(FileOut(feram_file), config.generate_feram_file),
+            WithDir(DirIn(working_dir), DirIn(dir_cur),
+                    Feram(Exec(feram_bin), FileIn(feram_file))),
             copy_restart,
-            WriteOvitoDump(FileOut(working_dir / f'coords_{dir_cur.name}.ovt'),
-                           DirIn(dir_cur),
-                           'coord'),
-            WriteOvitoDump(FileOut(working_dir / f'dipoRavgs_{dir_cur.name}.ovt'),
-                           DirIn(dir_cur),
-                           'dipoRavg')
+            WriteOvitoDump(FileOut(working_dir / f'coords_{dir_cur.name}.ovt'), DirIn(dir_cur), 'coord'),
+            WriteOvitoDump(FileOut(working_dir / f'dipoRavgs_{dir_cur.name}.ovt'), DirIn(dir_cur), 'dipoRavg')
         ])
 
     def reducer(acc: OperationSequence, next_step) -> OperationSequence:
@@ -70,12 +54,9 @@ def run(runner: Runner, ece_config: ECEConfig) -> Result[Any, str]:
     steps_all = reduce(reducer, step_zip, OperationSequence())
 
     post = OperationSequence([
-        Copy(FileIn(Path(__file__)),
-             FileOut(working_dir / 'AutoFeram_control.py')),
-        WriteParquet(FileOut(working_dir / f'{working_dir.name}.parquet'),
-                     lambda: post_process(runner, ece_config)),
-        Archive(DirIn(working_dir),
-                FileOut(project_root() / 'output' / f'{working_dir.name}.tar.gz'))
+        Copy(FileIn(Path(__file__)), FileOut(working_dir / 'AutoFeram_control.py')),
+        WriteParquet(FileOut(working_dir / f'{working_dir.name}.parquet'), lambda: post_process(runner, ece_config)),
+        Archive(DirIn(working_dir), FileOut(project_root() / 'output' / f'{working_dir.name}.tar.gz'))
     ])
 
     all = OperationSequence([
@@ -120,30 +101,23 @@ def post_process(runner: Runner, config: ECEConfig) -> pl.DataFrame:
 if __name__ == "__main__":
     CUSTOM_FERAM_BIN = Path.home() / 'feram_dev/build/src/feram'
 
-    material       = BTO
-    size           = Int3(2, 2, 2)
-    temperature    = 200
+    runner = Runner(
+        sim_name    = 'bto',
+        feram_path  = CUSTOM_FERAM_BIN,
+        working_dir = project_root() / 'output' / f'ece_{timestamp()}',
+    )
+
     efield_initial = Vec3(0.001, 0, 0)
     efield_final   = Vec3[float](0, 0, 0)
     efield_static  = EFieldStatic(external_E_field = efield_initial)
 
     common = {
-        'L':      size,
-        'kelvin': temperature,
+        'L':      Int3(2, 2, 2),
+        'kelvin': 200,
     }
 
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d")
-
-    runner = Runner(
-        sim_name    = 'bto',
-        feram_path  = CUSTOM_FERAM_BIN,
-        working_dir = project_root() / 'output' / f'ece_{timestamp}',
-    )
-
-    _, working_dir, _ = runner
-
     config = ECEConfig(
-        material = material,
+        material = BTO,
         steps = {
             '1_preNPT': merge_setups([
                 General(

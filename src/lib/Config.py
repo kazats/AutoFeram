@@ -115,8 +115,8 @@ SetupDict: TypeAlias = dict[str, Any]
 
 @dataclass
 class FeramConfig:
-    setup: SetupDict
     material: Material
+    setup: SetupDict
 
     def generate_feram_file(self) -> str:
         def generate_key_val(k: str, v: str):

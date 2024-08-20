@@ -1,5 +1,3 @@
-import colors
-from result import Result
 from typing import Generic, NamedTuple, TypeAlias, TypeVar
 
 
@@ -29,7 +27,3 @@ class Vec7(NamedTuple, Generic[T1]):
 
     def __str__(self) -> str:
         return ' '.join(map(str, self))
-
-
-def colorize(result: Result):
-    return colors.yellow(result) if result.is_ok() else colors.red(result)

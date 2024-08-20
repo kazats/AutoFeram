@@ -1,12 +1,31 @@
 import polars as pl
 from pathlib import Path
 from typing import NamedTuple
+from collections.abc import Mapping
+
+from src.lib.Config import FeramConfig, Material, SetupDict
 
 
 class Runner(NamedTuple):
     sim_name: str
     working_dir: Path
     feram_path: Path
+
+
+class TempRange(NamedTuple):
+    initial: int
+    final: int
+    delta: int
+
+class TempConfig(NamedTuple):
+    config: FeramConfig
+    temperatures: TempRange
+
+
+class ECEConfig(NamedTuple):
+    # (n_thermalize + n_average) % n_coord_freq must == 0
+    material: Material
+    steps:    Mapping[str, SetupDict]
 
 
 LOG_SCHEMA = {

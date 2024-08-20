@@ -28,22 +28,22 @@ def rel_to_project_root(path: Path) -> Path:
     # return path.relative_to(project_root())
 
 
-PreconditionReturn: TypeAlias = Result[Path, str]
-Precondition: TypeAlias = Callable[[Path], PreconditionReturn]
+PreconditionR: TypeAlias = Result[Path, str]
+Precondition: TypeAlias = Callable[[Path], PreconditionR]
 
-def file_exists(path: Path) -> PreconditionReturn:
+def file_exists(path: Path) -> PreconditionR:
     if path.is_file():
         return Ok(path)
     else:
         return Err(f'No such file: {rel_to_project_root(path)}')
 
-def dir_exists(path: Path) -> PreconditionReturn:
+def dir_exists(path: Path) -> PreconditionR:
     if path.is_dir():
         return Ok(path)
     else:
         return Err(f'No such directory: {rel_to_project_root(path)}')
 
-def dir_doesnt_exist(path: Path) -> PreconditionReturn:
+def dir_doesnt_exist(path: Path) -> PreconditionR:
     if not path.exists():
         return Ok(path)
     else:
@@ -56,7 +56,7 @@ class FilePath():
     def __init__(self,
                  path: Path,
                  param_type: FilePathType,
-                 preconditions: Sequence[Precondition]) -> None:
+                 preconditions: Sequence[Precondition]):
         self.path: Path = path
         self.param_type: FilePathType = param_type
         self.preconditions = preconditions
@@ -74,32 +74,33 @@ class FilePath():
 
 
 class FileIn(FilePath):
-    def __init__(self, path: Path, preconditions: Sequence[Precondition] = []) -> None:
+    def __init__(self, path: Path, preconditions: Sequence[Precondition] = []):
         super().__init__(path, FilePathType.FileIn, [file_exists, *preconditions])
 
 Exec: TypeAlias = FileIn
 
 class FileOut(FilePath):
-    def __init__(self, path: Path, preconditions: Sequence[Precondition] = []) -> None:
+    def __init__(self, path: Path, preconditions: Sequence[Precondition] = []):
         super().__init__(path, FilePathType.FileOut, [*preconditions])
 
 class DirIn(FilePath):
-    def __init__(self, path: Path, preconditions: Sequence[Precondition] = []) -> None:
+    def __init__(self, path: Path, preconditions: Sequence[Precondition] = []):
         super().__init__(path, FilePathType.DirIn, [dir_exists, *preconditions])
 
 class DirOut(FilePath):
-    def __init__(self, path: Path, preconditions: Sequence[Precondition] = []) -> None:
+    def __init__(self, path: Path, preconditions: Sequence[Precondition] = []):
         super().__init__(path, FilePathType.DirOut, [*preconditions])
 
 
+OperationR: TypeAlias = Result[Any, str]
 class Operation:
-    def __init__(self, operation: Callable[[], Result[Any, str]]) -> None:
+    def __init__(self, operation: Callable[[], OperationR]):
         self.operation = operation
 
     def __iter__(self) -> Iterator:
         return self.run().__iter__()
 
-    def run(self) -> Result[Any, str]:
+    def run(self) -> OperationR:
         res = self.operation()
         color_res = colors.color(res, 'gray') if res.is_ok() else colors.red(res)
         print(color_res)
@@ -107,18 +108,18 @@ class Operation:
 
 
 class Empty(Operation):
-    def __init__(self) -> None:
+    def __init__(self):
         pass
 
-    def run(self) -> Result[Any, str]:
+    def run(self) -> OperationR:
         return Ok('Empty')
 
 
 class MkDirs(Operation):
-    def __init__(self, path: DirOut) -> None:
+    def __init__(self, path: DirOut):
         super().__init__(lambda: self.do(path))
 
-    def do(self, path: DirOut) -> Result[Any, str]:
+    def do(self, path: DirOut) -> OperationR:
         return do(
             as_result(FileExistsError)(checked.path.mkdir)(mode=0o755, parents=True, exist_ok=True)
             for checked in path.check_preconditions()
@@ -126,10 +127,10 @@ class MkDirs(Operation):
 
 
 class Cd(Operation):
-    def __init__(self, dir: DirIn) -> None:
+    def __init__(self, dir: DirIn):
         super().__init__(lambda: self.do(dir))
 
-    def do(self, dir: DirIn) -> Result[Any, str]:
+    def do(self, dir: DirIn) -> OperationR:
         return do(
             as_result(OSError)(os.chdir)(checked.path)
             for checked in dir.check_preconditions()
@@ -137,10 +138,10 @@ class Cd(Operation):
 
 
 class WithDir(Operation):
-    def __init__(self, cwd: DirIn, dir: DirIn, operation: Operation) -> None:
+    def __init__(self, cwd: DirIn, dir: DirIn, operation: Operation):
         super().__init__(lambda: self.do(cwd, dir, operation))
 
-    def do(self, return_dir: DirIn, working_dir: DirIn, operation: Operation) -> Result[Any, str]:
+    def do(self, return_dir: DirIn, working_dir: DirIn, operation: Operation) -> OperationR:
         return do(
             Ok(dir_from)
             for _ in Cd(working_dir)
@@ -150,10 +151,10 @@ class WithDir(Operation):
 
 
 class Remove(Operation):
-    def __init__(self, file: FileIn) -> None:
+    def __init__(self, file: FileIn):
         super().__init__(lambda: self.do(file))
 
-    def do(self, file: FileIn) -> Result[Any, str]:
+    def do(self, file: FileIn) -> OperationR:
         return do(
             as_result(Exception)(checked.path.unlink)()
             for checked in file.check_preconditions()
@@ -161,10 +162,10 @@ class Remove(Operation):
 
 
 class Rename(Operation):
-    def __init__(self, src: FileIn | DirIn, dst: FileOut | DirOut) -> None:
+    def __init__(self, src: FileIn | DirIn, dst: FileOut | DirOut):
         super().__init__(lambda: self.do(src, dst))
 
-    def do(self, src: FileIn | DirIn, dst: FileOut | DirOut) -> Result[Any, str]:
+    def do(self, src: FileIn | DirIn, dst: FileOut | DirOut) -> OperationR:
         return do(
             as_result(Exception)(checked_src.path.rename)(dst.path)
             for checked_src in src.check_preconditions()
@@ -172,10 +173,10 @@ class Rename(Operation):
 
 
 class Cat(Operation):
-    def __init__(self, path: FileIn) -> None:
+    def __init__(self, path: FileIn):
         super().__init__(lambda: self.do(path))
 
-    def do(self, file: FileIn) -> Result[Any, str]:
+    def do(self, file: FileIn) -> OperationR:
         return do(
             Ok(res)
             for checked in file.check_preconditions()
@@ -193,10 +194,10 @@ class Cat(Operation):
 
 
 class Copy(Operation):
-    def __init__(self, src: FileIn, dst: FileOut) -> None:
+    def __init__(self, src: FileIn, dst: FileOut):
         super().__init__(lambda: self.do(src, dst))
 
-    def do(self, src: FileIn, dst: FileOut) -> Result[Any, str]:
+    def do(self, src: FileIn, dst: FileOut) -> OperationR:
         return do(
             as_result(OSError)(shutil.copy2)(checked_src.path, dst.path)
             for checked_src in src.check_preconditions()
@@ -204,7 +205,7 @@ class Copy(Operation):
 
 
 class Append(Operation):
-    def __init__(self, path_in: FileIn, path_out: FileOut) -> None:
+    def __init__(self, path_in: FileIn, path_out: FileOut):
         super().__init__(lambda: self.do(path_in, path_out))
 
     @as_result(Exception)
@@ -212,7 +213,7 @@ class Append(Operation):
         with open(path_out.path, 'a') as outf:
             outf.write(path_in.path.read_text())
 
-    def do(self, path_in: FileIn, path_out: FileOut) -> Result[Any, str]:
+    def do(self, path_in: FileIn, path_out: FileOut) -> OperationR:
         return do(
             Ok(res)
             for checked_in in path_in.check_preconditions()
@@ -222,7 +223,7 @@ class Append(Operation):
 
 
 class Write(Operation):
-    def __init__(self, file: FileOut, get_content: Callable[[], str]) -> None:
+    def __init__(self, file: FileOut, get_content: Callable[[], str]):
         super().__init__(lambda: self.do(file, get_content))
 
     @as_result(Exception)
@@ -231,7 +232,7 @@ class Write(Operation):
         # with open(file.path, 'w') as outf:
         #     outf.write(content)
 
-    def do(self, file: FileOut, get_content: Callable[[], str]) -> Result[Any, str]:
+    def do(self, file: FileOut, get_content: Callable[[], str]) -> OperationR:
         return do(
             self.safe_write(checked_out, get_content())
             for checked_out in file.check_preconditions()
@@ -239,14 +240,14 @@ class Write(Operation):
 
 
 class WriteParquet(Operation):
-    def __init__(self, file: FileOut, get_df: Callable[[], pl.DataFrame]) -> None:
+    def __init__(self, file: FileOut, get_df: Callable[[], pl.DataFrame]):
         super().__init__(lambda: self.do(file, get_df))
 
     @as_result(Exception)
     def safe_write_parquet(self, file: FileOut, df: pl.DataFrame) -> None:
         df.write_parquet(file.path)
 
-    def do(self, file: FileOut, get_df: Callable[[], pl.DataFrame]) -> Result[Any, str]:
+    def do(self, file: FileOut, get_df: Callable[[], pl.DataFrame]) -> OperationR:
         return do(
             self.safe_write_parquet(checked_out, get_df())
             # TODO: check input files
@@ -255,7 +256,7 @@ class WriteParquet(Operation):
 
 
 class Archive(Operation):
-    def __init__(self, src: DirIn | FileIn, dst: FileOut) -> None:
+    def __init__(self, src: DirIn | FileIn, dst: FileOut):
         super().__init__(lambda: self.do(src, dst))
 
     @as_result(Exception)
@@ -263,7 +264,7 @@ class Archive(Operation):
         with tarfile.open(dst.path, 'w:gz') as tar:
             tar.add(src.path, arcname=src.path.name)
 
-    def do(self, src, dst) -> Result[Any, str]:
+    def do(self, src, dst) -> OperationR:
         return do(
             Ok(res)
             for checked_src in src.check_preconditions()
@@ -274,10 +275,10 @@ class Archive(Operation):
 
 
 class Feram(Operation):
-    def __init__(self, feram_bin: Exec, feram_input: FileIn) -> None:
+    def __init__(self, feram_bin: Exec, feram_input: FileIn):
         super().__init__(lambda: self.do(feram_bin, feram_input))
 
-    def do(self, feram_bin: Exec, feram_input: FileIn) -> Result[Any, str]:
+    def do(self, feram_bin: Exec, feram_input: FileIn) -> OperationR:
         return do(
             Ok(res)
             for checked_feram_bin in feram_bin.check_preconditions()
@@ -291,10 +292,10 @@ class Feram(Operation):
 
 
 class OperationSequence(Operation):
-    def __init__(self, operations: Sequence[Operation] = []) -> None:
+    def __init__(self, operations: Sequence[Operation] = []):
         self.operations = operations
 
-    def run(self) -> Result[Any, str]:
+    def run(self) -> OperationR:
         return reduce(lambda op, next_op: op.and_then(lambda _: next_op.run()),
                       self.operations,
                       Empty().run())
