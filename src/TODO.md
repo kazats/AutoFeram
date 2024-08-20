@@ -8,8 +8,9 @@
 - [x] ece
 
 ## misc
-- [ ] abort on existing output directory
+- [ ] factor out post_process()
 - [ ] add resume functionality
+- [x] abort on existing output directory
 
 
 # INFO
