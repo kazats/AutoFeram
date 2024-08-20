@@ -87,7 +87,7 @@ class WriteOvitoDump(Operation):
     def safe_write(self, file: FileOut, dipo_files: Sequence[Path], mod_file: Optional[FileIn]):
         write_dump(file.path, dipo_files, mod_file.path if mod_file else None)
 
-    def do(self, file: FileOut, working_dir: DirIn, ext: str, mod_file: Optional[FileIn]) -> Result[Any, str]:
+    def do(self, file: FileOut, working_dir: DirIn, ext: str, mod_file: Optional[FileIn]) -> OperationR:
         def natsort(file: Path) -> list[str | int]:
             return [int(t) if t.isdigit() else t.lower() for t in re.split(r'(\d+)', file.name)]
 

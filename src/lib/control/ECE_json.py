@@ -13,7 +13,7 @@ from src.lib.Ovito import WriteOvitoDump
 from src.lib.Util import *
 
 
-def run(runner: Runner, ece_config: ECEConfig) -> Result[Any, str]:
+def run(runner: Runner, ece_config: ECEConfig) -> OperationR:
 
     def setup_with(setup: SetupDict) -> FeramConfig:
         return FeramConfig(

@@ -14,7 +14,7 @@ from src.lib.Ovito import WriteOvitoDump
 from src.lib.Util import *
 
 
-def run(runner: Runner, temp_config: TempConfig, add_pre: Operation = OperationSequence()) -> Result[Any, str]:
+def run(runner: Runner, temp_config: TempConfig, add_pre: Operation = OperationSequence()) -> OperationR:
     sim_name, working_dir, feram_bin = runner
     config, temps = temp_config
 

@@ -13,7 +13,7 @@ from src.lib.Ovito import WriteOvitoDump
 from src.lib.Util import *
 
 
-def run(runner: Runner, temp_config: TempConfig) -> Result[Any, str]:
+def run(runner: Runner, temp_config: TempConfig) -> OperationR:
     sim_name, working_dir, feram_bin = runner
     config, temps = temp_config
 
