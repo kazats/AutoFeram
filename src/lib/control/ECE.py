@@ -62,12 +62,11 @@ def run(runner: Runner, ece_config: ECEConfig) -> OperationR:
     all = OperationSequence([
         pre,
         steps_all,
-        post
+        post,
+        Success('ECE')
     ])
 
-    return all.run().and_then(
-        lambda _: Ok('ECE: Success')).map_err(
-        lambda _: 'ECE: Failure')
+    return all.run()
 
 
 def post_process(runner: Runner, config: ECEConfig) -> pl.DataFrame:
@@ -162,4 +161,4 @@ if __name__ == "__main__":
             ]) | common
         })
 
-    print(colorize(run(runner, config)))
+    run(runner, config)

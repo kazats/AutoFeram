@@ -3,7 +3,6 @@ import subprocess as sub
 import os
 import shutil
 import tarfile
-import colors
 from functools import reduce
 from pathlib import Path
 from enum import Enum
@@ -11,7 +10,7 @@ from result import Result, Ok, Err, as_result, do
 from collections.abc import Callable, Iterator, Sequence
 from typing import Any, Self, TypeAlias, cast
 
-from src.lib.Util import project_root
+from src.lib.Util import project_root, print_result
 
 
 safe_run = as_result(Exception)(sub.run)
@@ -90,13 +89,6 @@ class DirOut(FilePath):
         super().__init__(path, FilePathType.DirOut, [*preconditions])
 
 
-def print_result(result: Result, color_ok='green', color_err='red', color_body='gray') -> None:
-    match result:
-        case Ok(value):
-            print(f"{colors.color('Success', color_ok)}\t {colors.color(value, color_body)}")
-        case Err(e):
-            print(f"{colors.color('Failure', color_err)}\t {colors.color(e, color_body)}")
-
 OperationR: TypeAlias = Result[Any, str]
 class Operation:
     def __init__(self, operation: Callable[[], OperationR]):
@@ -117,6 +109,16 @@ class Empty(Operation):
 
     def run(self) -> OperationR:
         return Ok(self.__class__.__name__)
+
+
+class Success(Operation):
+    def __init__(self, message: str):
+        self.message = message
+
+    def run(self) -> OperationR:
+        res = Ok(self.message)
+        print_result(res, color_ok='yellow', color_body='yellow')
+        return res
 
 
 class MkDirs(Operation):

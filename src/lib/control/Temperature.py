@@ -64,12 +64,11 @@ def run(runner: Runner, temp_config: TempConfig) -> OperationR:
     all = OperationSequence([
         pre,
         steps,
-        post
+        post,
+        Success('Temperature')
     ])
 
-    return all.run().and_then(
-        lambda _: Ok('Temperature: Success')).map_err(
-        lambda _: 'Temperature: Failure')
+    return all.run()
 
 
 def post_process(runner: Runner, config: TempConfig) -> pl.DataFrame:
@@ -128,4 +127,4 @@ if __name__ == "__main__":
         temperatures = TempRange(initial = 350, final = 50, delta = -5)
     )
 
-    print(colorize(run(runner, config)))
+    run(runner, config)

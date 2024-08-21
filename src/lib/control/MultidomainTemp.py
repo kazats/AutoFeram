@@ -66,12 +66,11 @@ def run(runner: Runner, temp_config: TempConfig, add_pre: Operation = OperationS
     all = OperationSequence([
         pre,
         steps,
-        post
+        post,
+        Success('MultidomainTemp')
     ])
 
-    return all.run().and_then(
-        lambda _: Ok('MultidomainTemp: Success')).map_err(
-        lambda _: 'MultidomainTemp: Failure')
+    return all.run()
 
 
 def post_process(runner: Runner, config: TempConfig) -> pl.DataFrame:
@@ -139,4 +138,4 @@ if __name__ == "__main__":
                                  # Domain(Int3(24, 24, 0), Props(0, -1, 0)),
                                  ])
 
-    print(colorize(run(runner, config, add_pre = lf_writer)))
+    run(runner, config, add_pre = lf_writer)

@@ -25,6 +25,7 @@ def run(runner: Runner, ece_config: ECEConfig) -> OperationR:
 
     pre = OperationSequence([
         MkDirs(DirOut(working_dir, preconditions=[dir_doesnt_exist])),
+        # MkDirs(DirOut(working_dir)),
         *[MkDirs(DirOut(working_dir / step_dir)) for step_dir in ece_config.steps.keys()]
     ])
 
@@ -61,12 +62,11 @@ def run(runner: Runner, ece_config: ECEConfig) -> OperationR:
     all = OperationSequence([
         pre,
         steps_all,
-        post
+        post,
+        Success('ECE')
     ])
 
-    return all.run().and_then(
-        lambda _: Ok('ECE: Success')).map_err(
-        lambda _: 'ECE: Failure')
+    return all.run()
 
 
 def post_process(runner: Runner, config: ECEConfig) -> pl.DataFrame:
@@ -155,4 +155,4 @@ if __name__ == "__main__":
             ]) | common
         })
 
-    print(colorize(run(runner, config)))
+    run(runner, config)

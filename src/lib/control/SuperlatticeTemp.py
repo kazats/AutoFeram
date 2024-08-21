@@ -66,12 +66,11 @@ def run(runner: Runner, temp_config: TempConfig, add_pre: Operation = OperationS
     all = OperationSequence([
         pre,
         steps,
-        post
+        post,
+        Success('SuperlatticeTemp')
     ])
 
-    return all.run().and_then(
-        lambda _: Ok('SuperlatticeTemp: Success')).map_err(
-        lambda _: 'SuperlatticeTemp: Failure')
+    return all.run()
 
 
 def post_process(runner: Runner, config: TempConfig) -> pl.DataFrame:
@@ -134,4 +133,4 @@ if __name__ == "__main__":
                                   coords = generate_coords(config.config.setup['L']),
                                   bto_sto = (1, 1))  # sum(bto_sto) should == size.z
 
-    print(colorize(run(runner, config, add_pre = mod_writer)))
+    run(runner, config, add_pre = mod_writer)
