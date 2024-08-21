@@ -9,7 +9,7 @@ from src.lib.materials.BST import BST
 from src.lib.Config import *
 from src.lib.Log import *
 from src.lib.Operations import *
-from src.lib.Ovito import WriteOvitoDump
+from src.lib.Ovito import WriteOvito
 from src.lib.Util import *
 
 
@@ -55,8 +55,8 @@ def run(runner: Runner, temp_config: TempConfig) -> OperationR:
     post = OperationSequence([
         Copy(FileIn(Path(__file__)), FileOut(working_dir / 'AutoFeram_control.py')),
         Remove(FileIn(restart_file)),
-        WriteOvitoDump(FileOut(working_dir / 'coords.ovt'), DirIn(coord_dir), 'coord'),
-        WriteOvitoDump(FileOut(working_dir / 'dipoRavgs.ovt'), DirIn(dipoRavg_dir), 'dipoRavg'),
+        WriteOvito(FileOut(working_dir / 'coords.ovt'), DirIn(coord_dir), 'coord'),
+        WriteOvito(FileOut(working_dir / 'dipoRavgs.ovt'), DirIn(dipoRavg_dir), 'dipoRavg'),
         WriteParquet(FileOut(working_dir / f'{working_dir.name}.parquet'), lambda: post_process(runner, temp_config)),
         Archive(DirIn(working_dir), FileOut(project_root() / 'output' / f'{working_dir.name}.tar.gz'))
     ])

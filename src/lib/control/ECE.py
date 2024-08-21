@@ -10,7 +10,7 @@ from src.lib.Config import *
 from src.lib.Domain import *
 from src.lib.Log import *
 from src.lib.Operations import *
-from src.lib.Ovito import WriteOvitoDump
+from src.lib.Ovito import WriteOvito
 from src.lib.Util import *
 
 
@@ -41,8 +41,8 @@ def run(runner: Runner, ece_config: ECEConfig) -> OperationR:
             WithDir(DirIn(working_dir), DirIn(dir_cur),
                     Feram(Exec(feram_bin), FileIn(feram_file))),
             copy_restart,
-            WriteOvitoDump(FileOut(working_dir / f'coords_{dir_cur.name}.ovt'), DirIn(dir_cur), 'coord'),
-            WriteOvitoDump(FileOut(working_dir / f'dipoRavgs_{dir_cur.name}.ovt'), DirIn(dir_cur), 'dipoRavg')
+            WriteOvito(FileOut(working_dir / f'coords_{dir_cur.name}.ovt'), DirIn(dir_cur), 'coord'),
+            WriteOvito(FileOut(working_dir / f'dipoRavgs_{dir_cur.name}.ovt'), DirIn(dir_cur), 'dipoRavg')
         ])
 
     def reducer(acc: OperationSequence, next_step) -> OperationSequence:

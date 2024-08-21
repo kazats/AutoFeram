@@ -79,7 +79,7 @@ def write_dump(dump_path: Path, dipo_files: Sequence[Path], mod_file: Optional[P
                 )
 
 
-class WriteOvitoDump(Operation):
+class WriteOvito(Operation):
     def __init__(self, file: FileOut, working_dir: DirIn, ext: str, mod_file: Optional[FileIn] = None) -> None:
         super().__init__(lambda: self.do(file, working_dir, ext, mod_file))
 
@@ -106,4 +106,4 @@ class WriteOvitoDump(Operation):
             for checked_out   in file.check_preconditions()
             for checked_in    in (mod_file.check_preconditions() if mod_file else Ok(None))
             for res in self.safe_write(checked_out, checked_dipos, checked_in)
-        ).map(lambda _: f'WriteOvitoDump: {rel_to_project_root(file.path)}').map_err(lambda x: f'WriteOvitoDump: {x}')
+        ).map(lambda _: f'WriteOvito: {file.path}').map_err(lambda x: f'WriteOvito: {x}')
