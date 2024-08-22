@@ -106,4 +106,4 @@ class WriteOvito(Operation):
             for checked_out   in file.check_preconditions()
             for checked_in    in (mod_file.check_preconditions() if mod_file else Ok(None))
             for res in self.safe_write(checked_out, checked_dipos, checked_in)
-        ).map(lambda _: f'WriteOvito: {file.path}').map_err(lambda x: f'WriteOvito: {x}')
+        ).map(lambda _: f'{type(self).__name__}: {file.path}').map_err(lambda x: f'{type(self).__name__}: {x}')
