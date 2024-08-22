@@ -15,7 +15,7 @@ from src.lib.Util import *
 
 def run(runner: Runner, temp_config: TempConfig) -> OperationR:
     sim_name, working_dir, feram_bin = runner
-    config, temps = temp_config
+    _, temps, config = temp_config
 
     feram_file      = working_dir / f'{sim_name}.feram'
     avg_file        = working_dir / f'{sim_name}.avg'
@@ -105,26 +105,25 @@ if __name__ == "__main__":
     )
 
     config = TempConfig(
-        FeramConfig(
-            setup = merge_setups([
-                General(
-                    verbose      = 4,
-                    L            = Vec3(36, 36, 36),
-                    # n_thermalize = 4,
-                    # n_average    = 2,
-                    # n_coord_freq = 6,
-                    bulk_or_film = Structure.Bulk
-                ),
-                # EFieldStatic(
-                #     external_E_field = Vec3(0.001, 0, 0)
-                # ),
-                # Strain(
-                #     epi_strain = Vec3(0.01, 0.01, 0)
-                # )
-            ]),
-            material = BST
-        ),
-        temperatures = TempRange(initial = 350, final = 50, delta = -5)
+        material = BST,
+        temp_range = TempRange(initial = 350, final = 50, delta = -5),
+        setup = [
+            General(
+                verbose      = 4,
+                L            = Int3(36, 36, 36),
+                # n_thermalize = 4,
+                # n_average    = 2,
+                # n_coord_freq = 6,
+                bulk_or_film = Structure.Bulk
+            ),
+            # EFieldStatic(
+            #     external_E_field = Vec3(0.001, 0, 0)
+            # ),
+            # Strain(
+            #     epi_strain = Vec3(0.01, 0.01, 0)
+            # )
+        ]
+
     )
 
     run(runner, config)

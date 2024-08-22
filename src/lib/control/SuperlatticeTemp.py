@@ -16,7 +16,7 @@ from src.lib.Util import *
 
 def run(runner: Runner, temp_config: TempConfig, add_pre: Operation = OperationSequence()) -> OperationR:
     sim_name, working_dir, feram_bin = runner
-    config, temps = temp_config
+    _, temps, config = temp_config
 
     feram_file      = working_dir / f'{sim_name}.feram'
     avg_file        = working_dir / f'{sim_name}.avg'
@@ -103,34 +103,35 @@ if __name__ == "__main__":
     runner = Runner(
         sim_name    = 'bto',
         feram_path  = CUSTOM_FERAM_BIN,
-        working_dir = project_root() / 'output' / f'superlattice_temp_{timestamp()}',
+        working_dir = project_root() / 'output' / f'superlattice_temp_{timestamp()}'
     )
 
     config = TempConfig(
-        FeramConfig(
-            setup = merge_setups([
-                General(
-                    verbose      = 4,
-                    L            = Int3(3, 3, 3),
-                    n_thermalize = 4,
-                    n_average    = 2,
-                    n_coord_freq = 6,
-                    bulk_or_film = Structure.Bulk
-                ),
-                # EFieldStatic(
-                #     external_E_field = Vec3(0.001, 0, 0)
-                # ),
-                # Strain(
-                #     epi_strain = Vec3(0.01, 0.01, 0)
-                # )
-            ]),
-            material = BST
-        ),
-        temperatures = TempRange(initial = 350, final = 340, delta = -5)
+        material = BST,
+        temp_range = TempRange(initial = 350, final = 340, delta = -5),
+        setup = [
+            General(
+                verbose      = 4,
+                L            = Int3(3, 3, 3),
+                n_thermalize = 4,
+                n_average    = 2,
+                n_coord_freq = 6,
+                bulk_or_film = Structure.Bulk
+            ),
+            # EFieldStatic(
+            #     external_E_field = Vec3(0.001, 0, 0)
+            # ),
+            # Strain(
+            #     epi_strain = Vec3(0.01, 0.01, 0)
+            # )
+        ]
+
     )
 
-    mod_writer = ModulationWriter(output_path = runner.working_dir / f'{runner.sim_name}.modulation',
-                                  coords = generate_coords(config.config.setup['L']),
-                                  bto_sto = (1, 1))  # sum(bto_sto) should == size.z
+    mod_writer = ModulationWriter(
+        output_path = runner.working_dir / f'{runner.sim_name}.modulation',
+        coords = generate_coords(config.config.setup['L']),
+        bto_sto = (1, 1)  # sum(bto_sto) should == size.z
+    )
 
     run(runner, config, add_pre = mod_writer)

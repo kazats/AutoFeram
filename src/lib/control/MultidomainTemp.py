@@ -16,7 +16,7 @@ from src.lib.Util import *
 
 def run(runner: Runner, temp_config: TempConfig, add_pre: Operation = OperationSequence()) -> OperationR:
     sim_name, working_dir, feram_bin = runner
-    config, temps = temp_config
+    _, temps, config = temp_config
 
     feram_file      = working_dir / f'{sim_name}.feram'
     avg_file        = working_dir / f'{sim_name}.avg'
@@ -103,39 +103,39 @@ if __name__ == "__main__":
     runner = Runner(
         sim_name    = 'bto',
         feram_path  = feram_with_fallback(CUSTOM_FERAM_BIN),
-        working_dir = project_root() / 'output' / f'multidomain_temp_{timestamp()}',
+        working_dir = project_root() / 'output' / f'multidomain_temp_{timestamp()}'
     )
 
     config = TempConfig(
-        FeramConfig(
-            material = BTO,
-            setup = merge_setups([
-                General(
-                    verbose      = 4,
-                    L            = Int3(3, 3, 3),
-                    n_thermalize = 4,
-                    n_average    = 2,
-                    n_coord_freq = 6,
-                    bulk_or_film = Structure.Bulk
-                ),
-                # EFieldStatic(
-                #     external_E_field = Vec3(0.001, 0, 0)
-                # ),
-                # Strain(
-                #     epi_strain = Vec3(0.01, 0.01, 0)
-                # )
-            ])
-        ),
-        temperatures = TempRange(initial = 350, final = 340, delta = -5)
+        material = BTO,
+        temp_range = TempRange(initial = 350, final = 340, delta = -5),
+        setup = [
+            General(
+                verbose      = 4,
+                L            = Int3(3, 3, 3),
+                n_thermalize = 4,
+                n_average    = 2,
+                n_coord_freq = 6,
+                bulk_or_film = Structure.Bulk
+            ),
+            # EFieldStatic(
+            #     external_E_field = Vec3(0.001, 0, 0)
+            # ),
+            # Strain(
+            #     epi_strain = Vec3(0.01, 0.01, 0)
+            # )
+        ]
+
     )
 
-    lf_writer = LocalfieldWriter(output_path = runner.working_dir / f'{runner.sim_name}.localfield',
-                                 size = config.config.setup['L'],
-                                 domains = [
-                                 Domain(Int3(0, 0, 0), Props(0, 0, 0)),
-                                 Domain(Int3(1, 0, 0), Props(0, 1, 0)),
-                                 # Domain(Int3(12, 47, 0), Props(1, 0, 0)),
-                                 # Domain(Int3(24, 24, 0), Props(0, -1, 0)),
-                                 ])
+    lf_writer = LocalfieldWriter(
+        output_path = runner.working_dir / f'{runner.sim_name}.localfield',
+        size = config.config.setup['L'],
+        domains = [Domain(Int3(0, 0, 0), Props(0, 0, 0)),
+                   Domain(Int3(1, 0, 0), Props(0, 1, 0)),
+                   # Domain(Int3(12, 47, 0), Props(1, 0, 0)),
+                   # Domain(Int3(24, 24, 0), Props(0, -1, 0)),
+                   ]
+    )
 
     run(runner, config, add_pre = lf_writer)

@@ -14,23 +14,15 @@ from src.lib.Util import *
 
 
 def run(runner: Runner, ece_config: ECEConfig) -> OperationR:
-
-    def setup_with(setup: SetupDict) -> FeramConfig:
-        return FeramConfig(
-            material = ece_config.material,
-            setup    = setup
-        )
-
     sim_name, working_dir, feram_bin = runner
 
     pre = OperationSequence([
-        MkDirs(DirOut(working_dir, preconditions=[dir_doesnt_exist])),
-        # MkDirs(DirOut(working_dir)),
+        # MkDirs(DirOut(working_dir, preconditions=[dir_doesnt_exist])),
+        MkDirs(DirOut(working_dir)),
         *[MkDirs(DirOut(working_dir / step_dir)) for step_dir in ece_config.steps.keys()]
     ])
 
-    def step(setup: SetupDict, dir_cur: Path, dir_next: Path) -> OperationSequence:
-        config          = setup_with(setup)
+    def step(config: FeramConfig, dir_cur: Path, dir_next: Path) -> OperationSequence:
         feram_file      = dir_cur / f'{sim_name}.feram'
         last_coord_file = dir_cur / f'{sim_name}.{config.last_coord()}.coord'
         copy_restart    = Copy(FileIn(last_coord_file),
@@ -81,7 +73,7 @@ def post_process(runner: Runner, config: ECEConfig) -> pl.DataFrame:
             dt_fs = pl.lit(setup['dt'] * 1000)
         )
 
-    merged_df = pl.concat([mk_df(step_dir, setup) for step_dir, setup in config.steps.items()])
+    merged_df = pl.concat([mk_df(step_dir, config.setup) for step_dir, config in config.steps.items()])
     time      = pl.Series(accumulate(merged_df['dt_fs'], lambda acc, x: acc + x))
     time_adj  = time - merged_df['dt_fs'][0]  # make time_fs start from 0
 
@@ -111,8 +103,9 @@ if __name__ == "__main__":
 
     config = ECEConfig(
         material = BTO,
+        common = common,
         steps = {
-            '1_preNPT': merge_setups([
+            '1_preNPT': [
                 General(
                     method       = Method.MD,
                     n_thermalize = 0,
@@ -120,8 +113,8 @@ if __name__ == "__main__":
                     n_coord_freq = 2, #0000
                 ),
                 efield_static
-            ]) | common,
-            '2_preNPE': merge_setups([
+            ],
+            '2_preNPE': [
                 General(
                     method       = Method.LF,
                     n_thermalize = 0,
@@ -129,8 +122,8 @@ if __name__ == "__main__":
                     n_coord_freq = 2, #0000
                 ),
                 efield_static
-            ]) | common,
-            '3_rampNPE': merge_setups([
+            ],
+            '3_rampNPE': [
                 General(
                     method       = Method.LF,
                     n_thermalize = 10, #0000
@@ -143,8 +136,8 @@ if __name__ == "__main__":
                     E_wave_type      = EWaveType.RampOff,
                     external_E_field = efield_initial
                 )
-            ]) | common,
-            '4_postNPE': merge_setups([
+            ],
+            '4_postNPE': [
                 General(
                     method       = Method.LF,
                     n_thermalize = 0,
@@ -152,7 +145,7 @@ if __name__ == "__main__":
                     n_coord_freq = 2, #0000
                 ),
                 efield_static
-            ]) | common
+            ]
         })
 
     run(runner, config)

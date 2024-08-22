@@ -1,9 +1,10 @@
 import polars as pl
+from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import NamedTuple
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
-from src.lib.Config import FeramConfig, Material, SetupDict
+from src.lib.Config import FeramConfig, Material, Setup, SetupDict, merge_setups
 
 
 class Runner(NamedTuple):
@@ -17,15 +18,31 @@ class TempRange(NamedTuple):
     final: int
     delta: int
 
-class TempConfig(NamedTuple):
-    config: FeramConfig
-    temperatures: TempRange
+@dataclass
+class TempConfig:
+    def __init__(self, material: Material, temp_range: TempRange, setup: Sequence[Setup]) -> None:
+        self.material = material
+        self.temp_range = temp_range
+        self.config = FeramConfig(
+            material = material,
+            setup    = merge_setups(setup)
+        )
+
+    def __iter__(self):
+        return (getattr(self, field.name) for field in fields(self))
 
 
-class ECEConfig(NamedTuple):
+class ECEConfig:
     # (n_thermalize + n_average) % n_coord_freq must == 0
-    material: Material
-    steps:    Mapping[str, SetupDict]
+    def __init__(self, material: Material, common: SetupDict, steps: Mapping[str, Sequence[Setup]]) -> None:
+        self.material = material
+        self.steps: Mapping[str, FeramConfig] = {
+            step: FeramConfig(
+                material = material,
+                setup = merge_setups(setups) | common
+            )
+            for step, setups in steps.items()
+        }
 
 
 LOG_SCHEMA = {
