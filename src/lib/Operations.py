@@ -108,7 +108,7 @@ class Empty(Operation):
         pass
 
     def run(self) -> OperationR:
-        return Ok(self.__class__.__name__)
+        return Ok(type(self).__name__)
 
 
 class Success(Operation):
@@ -129,7 +129,7 @@ class MkDirs(Operation):
         return do(
             as_result(Exception)(checked.path.mkdir)(mode=0o755, parents=True, exist_ok=True)
             for checked in path.check_preconditions()
-        ).map(lambda _: f'{self.__class__.__name__}: {path.path}').map_err(lambda x: f'{self.__class__.__name__}: {" ".join(cast(list[str], x))}')
+        ).map(lambda _: f'{type(self).__name__}: {path.path}').map_err(lambda x: f'{type(self).__name__}: {" ".join(cast(list[str], x))}')
 
 
 class Cd(Operation):
@@ -140,7 +140,7 @@ class Cd(Operation):
         return do(
             as_result(OSError)(os.chdir)(checked.path)
             for checked in dir.check_preconditions()
-        ).map(lambda _: f'{self.__class__.__name__}: {dir.path}').map_err(lambda x: f'{self.__class__.__name__}: {x}')
+        ).map(lambda _: f'{type(self).__name__}: {dir.path}').map_err(lambda x: f'{type(self).__name__}: {x}')
 
 
 class WithDir(Operation):
@@ -153,7 +153,7 @@ class WithDir(Operation):
             for _ in Cd(working_dir)
             for _ in operation
             for dir_from in Cd(return_dir)
-        ).map(lambda _: f'{self.__class__.__name__}: {working_dir.path}').map_err(lambda x: f'{self.__class__.__name__}: {x}')
+        ).map(lambda _: f'{type(self).__name__}: {working_dir.path}').map_err(lambda x: f'{type(self).__name__}: {x}')
 
 
 class Remove(Operation):
@@ -164,7 +164,7 @@ class Remove(Operation):
         return do(
             as_result(Exception)(checked.path.unlink)()
             for checked in file.check_preconditions()
-        ).map(lambda _: f'{self.__class__.__name__}: {file.path}').map_err(lambda x: f'{self.__class__.__name__}: {x}')
+        ).map(lambda _: f'{type(self).__name__}: {file.path}').map_err(lambda x: f'{type(self).__name__}: {x}')
 
 
 class Rename(Operation):
@@ -175,7 +175,7 @@ class Rename(Operation):
         return do(
             as_result(Exception)(checked_src.path.rename)(dst.path)
             for checked_src in src.check_preconditions()
-        ).map(lambda _: f'{self.__class__.__name__}: {src.path} >> {dst.path}').map_err(lambda x: f'{self.__class__.__name__}: {x}')
+        ).map(lambda _: f'{type(self).__name__}: {src.path} >> {dst.path}').map_err(lambda x: f'{type(self).__name__}: {x}')
 
 
 class Cat(Operation):
@@ -190,7 +190,7 @@ class Cat(Operation):
                 sub.run(['cat', checked.path],
                         capture_output=True,
                         universal_newlines=True))
-        ).map(lambda _: f'{self.__class__.__name__}: {file.path}').map_err(lambda x: f'{self.__class__.__name__}: {x}')
+        ).map(lambda _: f'{type(self).__name__}: {file.path}').map_err(lambda x: f'{type(self).__name__}: {x}')
         # return do(
         #     Ok(res)
         #     for checked in file.check_preconditions()
@@ -207,7 +207,7 @@ class Copy(Operation):
         return do(
             as_result(OSError)(shutil.copy2)(checked_src.path, dst.path)
             for checked_src in src.check_preconditions()
-        ).map(lambda _: f'{self.__class__.__name__}: {src.path} >> {dst.path}').map_err(lambda x: f'{self.__class__.__name__}: {x}')
+        ).map(lambda _: f'{type(self).__name__}: {src.path} >> {dst.path}').map_err(lambda x: f'{type(self).__name__}: {x}')
 
 
 class Append(Operation):
@@ -225,7 +225,7 @@ class Append(Operation):
             for checked_in in path_in.check_preconditions()
             for checked_out in path_out.check_preconditions()
             for res in self.safe_append(checked_in, checked_out)
-        ).map(lambda _: f'{self.__class__.__name__}: {path_in.path} >> {path_out.path}').map_err(lambda x: f'{self.__class__.__name__}: {x}')
+        ).map(lambda _: f'{type(self).__name__}: {path_in.path} >> {path_out.path}').map_err(lambda x: f'{type(self).__name__}: {x}')
 
 
 class Write(Operation):
@@ -242,7 +242,7 @@ class Write(Operation):
         return do(
             self.safe_write(checked_out, get_content())
             for checked_out in file.check_preconditions()
-        ).map(lambda _: f'{self.__class__.__name__}: {file.path}').map_err(lambda x: f'{self.__class__.__name__}: {x}')
+        ).map(lambda _: f'{type(self).__name__}: {file.path}').map_err(lambda x: f'{type(self).__name__}: {x}')
 
 
 class WriteParquet(Operation):
@@ -258,7 +258,7 @@ class WriteParquet(Operation):
             self.safe_write_parquet(checked_out, get_df())
             # TODO: check input files
             for checked_out in file.check_preconditions()
-        ).map(lambda _: f'{self.__class__.__name__}: {file.path}').map_err(lambda x: f'{self.__class__.__name__}: {x}')
+        ).map(lambda _: f'{type(self).__name__}: {file.path}').map_err(lambda x: f'{type(self).__name__}: {x}')
 
 
 class Archive(Operation):
@@ -276,8 +276,8 @@ class Archive(Operation):
             for checked_src in src.check_preconditions()
             for checked_dst in dst.check_preconditions()
             for res in self.safe_archive(checked_src, checked_dst)
-        ).map(lambda _: f'{self.__class__.__name__}: {src.path} >> {dst.path}')\
-        .map_err(lambda x: f'{self.__class__.__name__}: {x}')
+        ).map(lambda _: f'{type(self).__name__}: {src.path} >> {dst.path}')\
+        .map_err(lambda x: f'{type(self).__name__}: {x}')
 
 
 class Feram(Operation):
@@ -294,7 +294,7 @@ class Feram(Operation):
                 # sub.run([checked_feram_bin.path, checked_feram_input.path],
                 #         capture_output=True,
                 #         universal_newlines=True))
-        ).map(lambda _: f'{self.__class__.__name__}').map_err(lambda x: f'{self.__class__.__name__}: {x}')
+        ).map(lambda _: f'{type(self).__name__}').map_err(lambda x: f'{type(self).__name__}: {x}')
 
 
 class OperationSequence(Operation):
