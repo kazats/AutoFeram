@@ -45,7 +45,7 @@ class ECEConfig:
         }
 
 
-LOG_SCHEMA = {
+LOG_SCHEMA: dict[str, pl.DataTypeClass] = {
     'time_step':       pl.Int64,
     'acou_kinetic':    pl.Float64,
     'dipo_kinetic':    pl.Float64,
