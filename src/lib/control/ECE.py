@@ -1,28 +1,34 @@
-import polars as pl
 from pathlib import Path
-from functools import reduce
-from itertools import accumulate, zip_longest
+from itertools import zip_longest
 
 from src.lib.common import *
 from src.lib.control.common import *
 from src.lib.materials.BTO import BTO
 from src.lib.Config import *
 from src.lib.Domain import *
-from src.lib.Log import *
 from src.lib.Operations import *
 from src.lib.Ovito import WriteOvito
 from src.lib.Util import *
 
 
 def run(runner: Runner, ece_config: ECEConfig) -> OperationR:
-    sim_name, working_dir, feram_bin = runner
+    sim_name, output_dir, feram_bin = runner
+    src_file                         = caller_src_path()
+
+    artifacts_dir   = output_dir / '_artifacts'
+    ovito_dir       = artifacts_dir / 'ovito'
+    af_src_file     = artifacts_dir / f'AutoFeram_{src_file.name}'
+    parquet_file    = artifacts_dir / f'{sim_name}.parquet'
 
     pre = OperationSequence([
-        MkDirs(DirOut(working_dir, preconditions=[dir_doesnt_exist])),
-        *[MkDirs(DirOut(working_dir / step_dir)) for step_dir in ece_config.steps.keys()]
+        # MkDirs(DirOut(working_dir, preconditions=[dir_doesnt_exist])),
+        MkDirs(DirOut(output_dir)),
+        MkDirs(DirOut(artifacts_dir)),
+        MkDirs(DirOut(ovito_dir)),
+        *[MkDirs(DirOut(output_dir / step_dir)) for step_dir in ece_config.steps.keys()]
     ])
 
-    def step(config: FeramConfig, dir_cur: Path, dir_next: Path) -> OperationSequence:
+    def step(config: FeramConfig | Any, dir_cur: Path | Any, dir_next: Path | Any) -> OperationSequence:
         feram_file      = dir_cur / f'{sim_name}.feram'
         last_coord_file = dir_cur / f'{sim_name}.{config.last_coord()}.coord'
         copy_restart    = Copy(FileIn(last_coord_file),
@@ -30,72 +36,39 @@ def run(runner: Runner, ece_config: ECEConfig) -> OperationR:
 
         return OperationSequence([
             Write(FileOut(feram_file), config.generate_feram_file),
-            WithDir(DirIn(working_dir), DirIn(dir_cur),
+            WithDir(DirIn(output_dir), DirIn(dir_cur),
                     Feram(Exec(feram_bin), FileIn(feram_file))),
             copy_restart,
-            WriteOvito(FileOut(working_dir / f'coords_{dir_cur.name}.ovt'), DirIn(dir_cur), 'coord'),
-            WriteOvito(FileOut(working_dir / f'dipoRavgs_{dir_cur.name}.ovt'), DirIn(dir_cur), 'dipoRavg')
+            WriteOvito(DirIn(dir_cur), FileOut(ovito_dir / f'coords_{dir_cur.name}.ovt'), 'coord'),
+            WriteOvito(DirIn(dir_cur), FileOut(ovito_dir / f'dipoRavgs_{dir_cur.name}.ovt'), 'dipoRavg')
         ])
 
-    def reducer(acc: OperationSequence, next_step) -> OperationSequence:
-        (dir_cur, setups), (dir_next, _) = next_step
-        return acc + step(setups, dir_cur, dir_next)
-
-    steps     = [(working_dir / step_dir, setups) for step_dir, setups in ece_config.steps.items()]
+    steps     = [(output_dir / step_dir, setup) for step_dir, setup in ece_config.steps.items()]
     step_zip  = zip_longest(steps, steps[1:], fillvalue=(Any, Any))
-    steps_all = reduce(reducer, step_zip, OperationSequence())
+    steps_all = OperationSequence(
+        step(setup, dir_cur, dir_next)
+        for (dir_cur, setup), (dir_next, _) in step_zip
+    )
 
     post = OperationSequence([
-        Copy(FileIn(Path(__file__)), FileOut(working_dir / 'AutoFeram_control.py')),
-        WriteParquet(FileOut(working_dir / f'{working_dir.name}.parquet'), lambda: post_process(runner, ece_config)),
-        Archive(DirIn(working_dir), FileOut(project_root() / 'output' / f'{working_dir.name}.tar.gz'))
+        Copy(FileIn(src_file), FileOut(af_src_file)),
+        WriteParquet(FileOut(parquet_file), lambda: post_process_ece(runner, ece_config)),
+        Archive(DirIn(output_dir), FileOut(project_root() / 'output' / f'{output_dir.name}.tar.gz'))
     ])
 
-    all = OperationSequence([
+    return OperationSequence([
         pre,
         steps_all,
         post,
-        Success('ECE')
-    ])
-
-    return all.run()
-
-
-def post_process(runner: Runner, config: ECEConfig) -> pl.DataFrame:
-    sim_name, working_dir, _ = runner
-    log_name = f'{sim_name}.log'
-
-    def mk_df(step_dir: str, setup: SetupDict) -> pl.DataFrame:
-        log = parse_log(read_log(working_dir / step_dir / log_name))
-        df  = pl.DataFrame(log.time_steps,
-                           schema_overrides = {
-                           'u':       pl.List(pl.Float64),
-                           'u_sigma': pl.List(pl.Float64),
-                           'p':       pl.List(pl.Float64),
-                           'p_sigma': pl.List(pl.Float64),
-                           })
-
-        return df.with_columns(
-            step  = pl.lit(step_dir),
-            dt_fs = pl.lit(setup['dt'] * 1000)
-        )
-
-    merged_df = pl.concat([mk_df(step_dir, config.setup) for step_dir, config in config.steps.items()])
-    time      = accumulate(merged_df['dt_fs'], lambda acc, x: acc + x)
-
-    return merged_df.with_columns(
-        time_fs = pl.Series(time),
-        kelvin  = pl.col('dipo_kinetic') / (1.5 * BoltzmannConst)
-    )
+        Success(src_file.name)
+    ]).run()
 
 
 if __name__ == "__main__":
-    CUSTOM_FERAM_BIN = Path.home() / 'feram_dev/build/src/feram'
-
     runner = Runner(
         sim_name    = 'bto',
-        feram_path  = CUSTOM_FERAM_BIN,
-        working_dir = project_root() / 'output' / f'ece_{timestamp()}',
+        feram_path  = feram_with_fallback(Path.home() / 'feram_dev/build/src/feram'),
+        output_dir  = project_root() / 'output' / f'ece_json_{timestamp()}',
     )
 
     efield_initial = Vec3(0.001, 0, 0)
