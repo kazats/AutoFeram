@@ -95,7 +95,7 @@ class Material:
     P_alpha: float # [eV/Angstrom^4],
     P_gamma: float # [eV/Angstrom^4],
     P_kappa2: float
-    j: Vec7 # [eV/Angstrom^2],
+    j: Vec7[float] # [eV/Angstrom^2],
     epsilon_inf: float
 
 
