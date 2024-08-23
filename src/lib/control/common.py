@@ -24,7 +24,7 @@ class TempConfig(NamedTuple):
     temp_range: range
     config: FeramConfig
 
-def temp_config(material: Material, temp_range: TempRange, setup: Sequence[Setup]):
+def temp_config(material: Material, temp_range: TempRange, setup: Sequence[Setup]) -> TempConfig:
     return TempConfig(
         material = material,
         temp_range = range(*temp_range),
