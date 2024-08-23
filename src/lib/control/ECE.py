@@ -21,6 +21,7 @@ def run(runner: Runner, ece_config: ECEConfig) -> OperationR:
     parquet_file    = artifacts_dir / f'{sim_name}.parquet'
 
     pre = OperationSequence([
+        Message('Pre'),
         # MkDirs(DirOut(working_dir, preconditions=[dir_doesnt_exist])),
         MkDirs(DirOut(output_dir)),
         MkDirs(DirOut(artifacts_dir)),
@@ -35,6 +36,7 @@ def run(runner: Runner, ece_config: ECEConfig) -> OperationR:
                                FileOut(dir_next / f'{sim_name}.restart')) if dir_next is not Any else Empty()
 
         return OperationSequence([
+            Message(dir_cur.name),
             Write(FileOut(feram_file), config.generate_feram_file),
             WithDir(DirIn(output_dir), DirIn(dir_cur),
                     Feram(Exec(feram_bin), FileIn(feram_file))),
@@ -43,14 +45,16 @@ def run(runner: Runner, ece_config: ECEConfig) -> OperationR:
             WriteOvito(DirIn(dir_cur), FileOut(ovito_dir / f'dipoRavgs_{dir_cur.name}.ovt'), 'dipoRavg')
         ])
 
-    steps     = [(output_dir / step_dir, setup) for step_dir, setup in ece_config.steps.items()]
-    step_zip  = zip_longest(steps, steps[1:], fillvalue=(Any, Any))
-    steps_all = OperationSequence(
+    steps    = [(output_dir / step_dir, setup) for step_dir, setup in ece_config.steps.items()]
+    step_zip = zip_longest(steps, steps[1:], fillvalue=(Any, Any))
+
+    main = OperationSequence(
         step(setup, dir_cur, dir_next)
         for (dir_cur, setup), (dir_next, _) in step_zip
     )
 
     post = OperationSequence([
+        Message('Post'),
         Copy(FileIn(src_file), FileOut(af_src_file)),
         WriteParquet(FileOut(parquet_file), lambda: post_process_ece(runner, ece_config)),
         Archive(DirIn(output_dir), FileOut(project_root() / 'output' / f'{output_dir.name}.tar.gz'))
@@ -58,7 +62,8 @@ def run(runner: Runner, ece_config: ECEConfig) -> OperationR:
 
     return OperationSequence([
         pre,
-        steps_all,
+        Message('Main'),
+        main,
         post,
         Success(src_file.name)
     ]).run()

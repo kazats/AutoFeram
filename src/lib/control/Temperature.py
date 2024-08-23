@@ -31,6 +31,7 @@ def run(runner: Runner, temp_config: TempConfig, add_pre: Operation = Empty()) -
     parquet_file    = artifacts_dir / f'{sim_name}.parquet'
 
     pre = OperationSequence([
+        Message('Pre'),
         MkDirs(DirOut(output_dir)),
         MkDirs(DirOut(coord_dir)),
         MkDirs(DirOut(dipoRavg_dir)),
@@ -46,6 +47,7 @@ def run(runner: Runner, temp_config: TempConfig, add_pre: Operation = Empty()) -
         step_config.setup['kelvin'] = temperature
 
         return OperationSequence([
+            Message(f'Temperature: {temperature}'),
             Write(FileOut(feram_file), step_config.generate_feram_file),
             Feram(Exec(feram_bin), FileIn(feram_file)),
             Append(FileIn(avg_file), FileOut(thermo_file)),
@@ -55,9 +57,10 @@ def run(runner: Runner, temp_config: TempConfig, add_pre: Operation = Empty()) -
             Rename(FileIn(last_coord_file), FileOut(temp_coord_file)),
         ])
 
-    steps = OperationSequence(map(step, temps))
+    main = OperationSequence(map(step, temps))
 
     post = OperationSequence([
+        Message('Post'),
         Remove(FileIn(restart_file)),
 
         MkDirs(DirOut(artifacts_dir)),
@@ -73,7 +76,8 @@ def run(runner: Runner, temp_config: TempConfig, add_pre: Operation = Empty()) -
 
     return OperationSequence([
         pre,
-        steps,
+        Message('Main'),
+        main,
         post,
         Success(src_file.name)
         # Success(working_dir.name)
