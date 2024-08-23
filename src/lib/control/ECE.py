@@ -85,7 +85,7 @@ if __name__ == "__main__":
         'kelvin': 200,
     }
 
-    config = ECEConfig(
+    config = ece_config(
         material = BTO,
         common = common,
         steps = {

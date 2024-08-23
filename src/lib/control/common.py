@@ -57,17 +57,22 @@ def post_process_temp(runner: Runner, config: TempConfig) -> pl.DataFrame:
     )
 
 
-class ECEConfig:
+class ECEConfig(NamedTuple):
+    material: Material
+    steps: Mapping[str, FeramConfig]
+
+
+def ece_config(material: Material, common: SetupDict, steps: Mapping[str, Sequence[Setup]]) -> ECEConfig:
     # (n_thermalize + n_average) % n_coord_freq must == 0
-    def __init__(self, material: Material, common: SetupDict, steps: Mapping[str, Sequence[Setup]]) -> None:
-        self.material = material
-        self.steps: Mapping[str, FeramConfig] = {
+    return ECEConfig(
+        material = material,
+        steps = {
             step: FeramConfig(
                 material = material,
                 setup = merge_setups(setups) | common
-            )
-            for step, setups in steps.items()
+            ) for step, setups in steps.items()
         }
+    )
 
 def post_process_ece(runner: Runner, config: ECEConfig) -> pl.DataFrame:
     sim_name, working_dir, _ = runner
