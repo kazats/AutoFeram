@@ -1,5 +1,4 @@
 import polars as pl
-from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import NamedTuple
 from collections.abc import Mapping, Sequence
@@ -20,18 +19,35 @@ class TempRange(NamedTuple):
     final: int
     delta: int
 
-@dataclass
-class TempConfig:
-    def __init__(self, material: Material, temp_range: TempRange, setup: Sequence[Setup]) -> None:
-        self.material = material
-        self.temp_range = temp_range
-        self.config = FeramConfig(
+class TempConfig(NamedTuple):
+    material: Material
+    temp_range: range
+    config: FeramConfig
+
+def temp_config(material: Material, temp_range: TempRange, setup: Sequence[Setup]):
+    return TempConfig(
+        material = material,
+        temp_range = range(*temp_range),
+        config = FeramConfig(
             material = material,
             setup    = merge_setups(setup)
         )
+    )
 
-    def __iter__(self):
-        return (getattr(self, field.name) for field in fields(self))
+def post_process_temp(runner: Runner, config: TempConfig) -> pl.DataFrame:
+    sim_name, working_dir, _ = runner
+    json_name = f'{sim_name}.json'
+
+    df = pl.read_json(working_dir / json_name, schema = LOG_SCHEMA)
+
+    dt   = config.config.setup['dt'] * 1000
+    time = accumulate(range(1, len(df)), lambda acc, _: acc + dt, initial=dt)
+
+    return df.with_columns(
+        dt_fs   = pl.lit(dt),
+        time_fs = pl.Series(time),
+        kelvin  = pl.col('dipo_kinetic') / (1.5 * BoltzmannConst)
+    )
 
 
 class ECEConfig:
@@ -45,7 +61,6 @@ class ECEConfig:
             )
             for step, setups in steps.items()
         }
-
 
 def post_process_ece(runner: Runner, config: ECEConfig) -> pl.DataFrame:
     sim_name, working_dir, _ = runner

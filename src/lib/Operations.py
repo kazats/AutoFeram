@@ -7,7 +7,7 @@ from functools import reduce
 from pathlib import Path
 from enum import Enum
 from result import Result, Ok, Err, as_result, do
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterable, Iterator
 from typing import Any, Self, TypeAlias, cast
 
 from src.lib.Util import project_root, print_result
@@ -32,19 +32,19 @@ def file_exists(path: Path) -> PreconditionR:
     if path.is_file():
         return Ok(path)
     else:
-        return Err(f'No such file: {path}.')
+        return Err(f"No such file: '{path}'.")
 
 def dir_exists(path: Path) -> PreconditionR:
     if path.is_dir():
         return Ok(path)
     else:
-        return Err(f'No such directory: {path}.')
+        return Err(f"No such directory: '{path}'.")
 
 def dir_doesnt_exist(path: Path) -> PreconditionR:
     if not path.exists():
         return Ok(path)
     else:
-        return Err(f'Directory already exists: {path}.')
+        return Err(f"Directory already exists: '{path}'.")
 
 
 FilePathType = Enum('FilePathType', ['FileIn', 'FileOut', 'DirIn', 'DirOut'])
@@ -53,7 +53,7 @@ class FilePath():
     def __init__(self,
                  path: Path,
                  param_type: FilePathType,
-                 preconditions: Sequence[Precondition]):
+                 preconditions: Iterable[Precondition]):
         self.path: Path = path
         self.param_type: FilePathType = param_type
         self.preconditions = preconditions
@@ -61,7 +61,7 @@ class FilePath():
     def __repr__(self) -> str:
         return str(self.path)
 
-    def check_preconditions(self) -> Result[Self, Sequence[str]]:
+    def check_preconditions(self) -> Result[Self, Iterable[str]]:
         checked = (cond(self.path) for cond in self.preconditions)
         failed = [x.unwrap_err() for x in checked if x.is_err()]
         if not failed:
@@ -71,21 +71,21 @@ class FilePath():
 
 
 class FileIn(FilePath):
-    def __init__(self, path: Path, preconditions: Sequence[Precondition] = []):
+    def __init__(self, path: Path, preconditions: Iterable[Precondition] = []):
         super().__init__(path, FilePathType.FileIn, [file_exists, *preconditions])
 
 Exec: TypeAlias = FileIn
 
 class FileOut(FilePath):
-    def __init__(self, path: Path, preconditions: Sequence[Precondition] = []):
+    def __init__(self, path: Path, preconditions: Iterable[Precondition] = []):
         super().__init__(path, FilePathType.FileOut, [*preconditions])
 
 class DirIn(FilePath):
-    def __init__(self, path: Path, preconditions: Sequence[Precondition] = []):
+    def __init__(self, path: Path, preconditions: Iterable[Precondition] = []):
         super().__init__(path, FilePathType.DirIn, [dir_exists, *preconditions])
 
 class DirOut(FilePath):
-    def __init__(self, path: Path, preconditions: Sequence[Precondition] = []):
+    def __init__(self, path: Path, preconditions: Iterable[Precondition] = []):
         super().__init__(path, FilePathType.DirOut, [*preconditions])
 
 
@@ -298,7 +298,7 @@ class Feram(Operation):
 
 
 class OperationSequence(Operation):
-    def __init__(self, operations: Sequence[Operation] = []):
+    def __init__(self, operations: Iterable[Operation] = []):
         self.operations = operations
 
     def run(self) -> OperationR:
@@ -309,6 +309,3 @@ class OperationSequence(Operation):
     def __iter__(self) -> Iterator:
         yield self.run()
         # return iter(self.operations)
-
-    def __add__(self, other):
-        return OperationSequence(self.operations + other.operations)

@@ -1,7 +1,5 @@
-import polars as pl
 from copy import deepcopy
 from pathlib import Path
-from itertools import accumulate
 
 from src.lib.common import *
 from src.lib.control.common import *
@@ -14,7 +12,7 @@ from src.lib.Ovito import WriteOvito
 from src.lib.Util import *
 
 
-def run(runner: Runner, temp_config: TempConfig, add_pre: Operation = OperationSequence()) -> OperationR:
+def run(runner: Runner, temp_config: TempConfig, add_pre: Operation = Empty()) -> OperationR:
     sim_name, working_dir, feram_bin = runner
     _, temps, config = temp_config
 
@@ -32,7 +30,7 @@ def run(runner: Runner, temp_config: TempConfig, add_pre: Operation = OperationS
         MkDirs(DirOut(coord_dir)),
         MkDirs(DirOut(dipoRavg_dir)),
         Cd(DirIn(working_dir)),
-        add_pre,
+        add_pre
     ])
 
     def step(temperature: int) -> OperationSequence:
@@ -52,66 +50,37 @@ def run(runner: Runner, temp_config: TempConfig, add_pre: Operation = OperationS
             Rename(FileIn(last_coord_file), FileOut(temp_coord_file)),
         ])
 
-    steps = reduce(lambda acc, t: acc + step(t), range(*temps), OperationSequence())
+    steps = OperationSequence(map(step, temps))
 
     post = OperationSequence([
         Copy(FileIn(Path(__file__)), FileOut(working_dir / 'AutoFeram_control.py')),
         Remove(FileIn(restart_file)),
         WriteOvito(FileOut(working_dir / 'coords.ovt'), DirIn(coord_dir), 'coord'),
         WriteOvito(FileOut(working_dir / 'dipoRavgs.ovt'), DirIn(dipoRavg_dir), 'dipoRavg'),
-        WriteParquet(FileOut(working_dir / f'{working_dir.name}.parquet'), lambda: post_process(runner, temp_config)),
+        WriteParquet(FileOut(working_dir / f'{working_dir.name}.parquet'), lambda: post_process_temp(runner, temp_config)),
         Archive(DirIn(working_dir), FileOut(project_root() / 'output' / f'{working_dir.name}.tar.gz'))
     ])
 
-    all = OperationSequence([
+    return OperationSequence([
         pre,
         steps,
         post,
         Success('MultidomainTemp')
-    ])
-
-    return all.run()
-
-
-def post_process(runner: Runner, config: TempConfig) -> pl.DataFrame:
-    sim_name, working_dir, _ = runner
-    log_name = f'{sim_name}.log'
-
-    log = parse_log(read_log(working_dir / log_name))
-
-    df = pl.DataFrame(log.time_steps,
-                      schema_overrides = {
-                      'u':       pl.List(pl.Float64),
-                      'u_sigma': pl.List(pl.Float64),
-                      'p':       pl.List(pl.Float64),
-                      'p_sigma': pl.List(pl.Float64),
-                      })
-
-    dt   = config.config.setup['dt'] * 1000
-    time = accumulate(range(1, len(df)), lambda acc, _: acc + dt, initial=dt)
-
-    return df.with_columns(
-        dt_fs   = pl.lit(dt),
-        time_fs = pl.Series(time),
-        kelvin  = pl.col('dipo_kinetic') / (1.5 * BoltzmannConst)
-    )
+    ]).run()
 
 
 if __name__ == "__main__":
-    CUSTOM_FERAM_BIN = Path.home() / 'Code/git/feram-0.26.04_dev/build/src/feram'
-
     runner = Runner(
         sim_name    = 'bto',
-        feram_path  = feram_with_fallback(CUSTOM_FERAM_BIN),
+        feram_path  = feram_with_fallback(Path.home() / 'Code/git/feram-0.26.04_dev/build/src/feram'),
         working_dir = project_root() / 'output' / f'multidomain_temp_{timestamp()}'
     )
 
-    config = TempConfig(
+    config = temp_config(
         material = BTO,
         temp_range = TempRange(initial = 350, final = 340, delta = -5),
         setup = [
             General(
-                verbose      = 4,
                 L            = Int3(3, 3, 3),
                 n_thermalize = 4,
                 n_average    = 2,

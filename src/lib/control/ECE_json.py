@@ -1,5 +1,4 @@
 from pathlib import Path
-from functools import reduce
 from itertools import zip_longest
 
 from src.lib.common import *
@@ -14,6 +13,7 @@ from src.lib.Util import *
 
 def run(runner: Runner, ece_config: ECEConfig) -> OperationR:
     sim_name, working_dir, feram_bin = runner
+    src_file                         = Path(__file__)
 
     pre = OperationSequence([
         # MkDirs(DirOut(working_dir, preconditions=[dir_doesnt_exist])),
@@ -21,7 +21,7 @@ def run(runner: Runner, ece_config: ECEConfig) -> OperationR:
         *[MkDirs(DirOut(working_dir / step_dir)) for step_dir in ece_config.steps.keys()]
     ])
 
-    def step(config: FeramConfig, dir_cur: Path, dir_next: Path) -> OperationSequence:
+    def step(config: FeramConfig | Any, dir_cur: Path | Any, dir_next: Path | Any) -> OperationSequence:
         feram_file      = dir_cur / f'{sim_name}.feram'
         last_coord_file = dir_cur / f'{sim_name}.{config.last_coord()}.coord'
         copy_restart    = Copy(FileIn(last_coord_file),
@@ -36,36 +36,31 @@ def run(runner: Runner, ece_config: ECEConfig) -> OperationR:
             WriteOvito(FileOut(working_dir / f'dipoRavgs_{dir_cur.name}.ovt'), DirIn(dir_cur), 'dipoRavg')
         ])
 
-    def reducer(acc: OperationSequence, next_step) -> OperationSequence:
-        (dir_cur, setups), (dir_next, _) = next_step
-        return acc + step(setups, dir_cur, dir_next)
-
-    steps     = [(working_dir / step_dir, setups) for step_dir, setups in ece_config.steps.items()]
+    steps     = [(working_dir / step_dir, setup) for step_dir, setup in ece_config.steps.items()]
     step_zip  = zip_longest(steps, steps[1:], fillvalue=(Any, Any))
-    steps_all = reduce(reducer, step_zip, OperationSequence())
+    steps_all = OperationSequence(
+        step(setup, dir_cur, dir_next)
+        for (dir_cur, setup), (dir_next, _) in step_zip
+    )
 
     post = OperationSequence([
-        Copy(FileIn(Path(__file__)), FileOut(working_dir / 'AutoFeram_control.py')),
+        Copy(FileIn(src_file), FileOut(working_dir / f'AutoFeram_{src_file.name}')),
         WriteParquet(FileOut(working_dir / f'{working_dir.name}.parquet'), lambda: post_process_ece(runner, ece_config)),
         Archive(DirIn(working_dir), FileOut(project_root() / 'output' / f'{working_dir.name}.tar.gz'))
     ])
 
-    all = OperationSequence([
+    return OperationSequence([
         pre,
         steps_all,
         post,
-        Success('ECE')
-    ])
-
-    return all.run()
+        Success(src_file.name)
+    ]).run()
 
 
 if __name__ == "__main__":
-    CUSTOM_FERAM_BIN = Path.home() / 'feram_dev/build/src/feram'
-
     runner = Runner(
         sim_name    = 'bto',
-        feram_path  = feram_with_fallback(),
+        feram_path  = feram_with_fallback(Path.home() / 'feram_dev/build/src/feram'),
         working_dir = project_root() / 'output' / f'ece_json_{timestamp()}',
     )
 

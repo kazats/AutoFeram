@@ -1,11 +1,9 @@
-import polars as pl
 from copy import deepcopy
 from pathlib import Path
-from itertools import accumulate
 
 from src.lib.common import *
 from src.lib.control.common import *
-from src.lib.materials.BST import BST
+from src.lib.materials.BTO import BTO
 from src.lib.Config import *
 from src.lib.Log import *
 from src.lib.Operations import *
@@ -15,7 +13,8 @@ from src.lib.Util import *
 
 def run(runner: Runner, temp_config: TempConfig) -> OperationR:
     sim_name, working_dir, feram_bin = runner
-    _, temps, config = temp_config
+    _, temps, config                 = temp_config
+    src_file                         = Path(__file__)
 
     feram_file      = working_dir / f'{sim_name}.feram'
     avg_file        = working_dir / f'{sim_name}.avg'
@@ -50,70 +49,41 @@ def run(runner: Runner, temp_config: TempConfig) -> OperationR:
             Rename(FileIn(last_coord_file), FileOut(temp_coord_file)),
         ])
 
-    steps = reduce(lambda acc, t: acc + step(t), range(*temps), OperationSequence())
+    steps = OperationSequence(map(step, temps))
 
     post = OperationSequence([
-        Copy(FileIn(Path(__file__)), FileOut(working_dir / 'AutoFeram_control.py')),
+        Copy(FileIn(src_file), FileOut(working_dir / f'AutoFeram_{src_file.name}')),
         Remove(FileIn(restart_file)),
         WriteOvito(FileOut(working_dir / 'coords.ovt'), DirIn(coord_dir), 'coord'),
         WriteOvito(FileOut(working_dir / 'dipoRavgs.ovt'), DirIn(dipoRavg_dir), 'dipoRavg'),
-        WriteParquet(FileOut(working_dir / f'{working_dir.name}.parquet'), lambda: post_process(runner, temp_config)),
+        WriteParquet(FileOut(working_dir / f'{working_dir.name}.parquet'), lambda: post_process_temp(runner, temp_config)),
         Archive(DirIn(working_dir), FileOut(project_root() / 'output' / f'{working_dir.name}.tar.gz'))
     ])
 
-    all = OperationSequence([
+    return OperationSequence([
         pre,
         steps,
         post,
-        Success('Temperature')
-    ])
-
-    return all.run()
-
-
-def post_process(runner: Runner, config: TempConfig) -> pl.DataFrame:
-    sim_name, working_dir, _ = runner
-    log_name = f'{sim_name}.log'
-
-    log = parse_log(read_log(working_dir / log_name))
-
-    df = pl.DataFrame(log.time_steps,
-                      schema_overrides = {
-                      'u':       pl.List(pl.Float64),
-                      'u_sigma': pl.List(pl.Float64),
-                      'p':       pl.List(pl.Float64),
-                      'p_sigma': pl.List(pl.Float64),
-                      })
-
-    dt   = config.config.setup['dt'] * 1000
-    time = accumulate(range(1, len(df)), lambda acc, _: acc + dt, initial=dt)
-
-    return df.with_columns(
-        dt_fs   = pl.lit(dt),
-        time_fs = pl.Series(time),
-        kelvin  = pl.col('dipo_kinetic') / (1.5 * BoltzmannConst)
-    )
+        Success(src_file.name)
+    ]).run()
 
 
 if __name__ == "__main__":
-    CUSTOM_FERAM_BIN = Path.home() / 'feram_dev/build/src/feram'
-
     runner = Runner(
-        sim_name    = 'bst',
-        feram_path  = CUSTOM_FERAM_BIN,
+        sim_name    = 'bto',
+        feram_path  = feram_with_fallback(Path.home() / 'feram_dev/build/src/feram'),
         working_dir = project_root() / 'output' / f'temperature_{timestamp()}',
     )
 
-    config = TempConfig(
-        material = BST,
-        temp_range = TempRange(initial = 350, final = 50, delta = -5),
+    config = temp_config(
+        material = BTO,
+        temp_range = TempRange(initial = 350, final = 340, delta = -5),
         setup = [
             General(
-                verbose      = 4,
-                L            = Int3(36, 36, 36),
-                # n_thermalize = 4,
-                # n_average    = 2,
-                # n_coord_freq = 6,
+                L            = Int3(2, 2, 2),
+                n_thermalize = 4,
+                n_average    = 2,
+                n_coord_freq = 6,
                 bulk_or_film = Structure.Bulk
             ),
             # EFieldStatic(

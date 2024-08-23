@@ -1,9 +1,10 @@
 import re
 import numpy as np
 import pandas as pd
+from pathlib import Path
+from collections.abc import Sequence
 from typing import Optional
 from numpy.typing import NDArray
-from pathlib import Path
 
 from src.lib.Operations import *
 
