@@ -38,7 +38,7 @@ def post_process_temp(runner: Runner, config: TempConfig) -> pl.DataFrame:
     sim_name, working_dir, _ = runner
     json_name = f'{sim_name}.json'
 
-    df = pl.read_json(working_dir / json_name, schema = LOG_SCHEMA)
+    df = pl.read_json(working_dir / json_name, schema = LOG_SCHEMA)[1:]
     # df = pl.read_json(working_dir / json_name, schema = LOG_SCHEMA).select(
     #     pl.all(),
     #     *(pl.col(name).list[index].alias(f'{name}_{field}')
@@ -74,7 +74,7 @@ def post_process_ece(runner: Runner, config: ECEConfig) -> pl.DataFrame:
     json_name = f'{sim_name}.json'
 
     def mk_df(step_dir: str, setup: SetupDict) -> pl.DataFrame:
-        df = pl.read_json(working_dir / step_dir / json_name, schema = LOG_SCHEMA)
+        df = pl.read_json(working_dir / step_dir / json_name, schema = LOG_SCHEMA)[1:]
 
         return df.with_columns(
             step  = pl.lit(step_dir),
