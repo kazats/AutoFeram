@@ -39,6 +39,13 @@ def post_process_temp(runner: Runner, config: TempConfig) -> pl.DataFrame:
     json_name = f'{sim_name}.json'
 
     df = pl.read_json(working_dir / json_name, schema = LOG_SCHEMA)
+    # df = pl.read_json(working_dir / json_name, schema = LOG_SCHEMA).select(
+    #     pl.all(),
+    #     *(pl.col(name).list[index].alias(f'{name}_{field}')
+    #         for name in ['u', 'u_sigma', 'p', 'p_sigma']
+    #         for index, field in enumerate(['x', 'y', 'z'])
+    #     )
+    # )
 
     dt   = config.config.setup['dt'] * 1000
     time = accumulate(range(1, len(df)), lambda acc, _: acc + dt, initial=dt)
