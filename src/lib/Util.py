@@ -22,10 +22,10 @@ def caller_src_path():
     # adjust frame index if moved!
     return Path(inspect.stack()[2].filename)
 
-def print_result(result: Result, color_ok='green', color_err='red', color_body='gray') -> None:
+def print_result(result: Result, color_ok='green', color_err='red', color_body='dimgray', text_ok='Success') -> None:
     match result:
         case Ok(value):
-            print(f"{colors.color('Success', color_ok)}\t {colors.color(value, color_body)}")
+            print(f"{colors.color(text_ok, color_ok)}\t {colors.color(value, color_body)}")
         case Err(e):
             print(f"{colors.color('Failure', color_err)}\t {colors.color(e, color_body)}")
 
