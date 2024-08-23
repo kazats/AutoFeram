@@ -1,6 +1,7 @@
 import colors
 import datetime
 import shutil as sh
+import inspect
 from pathlib import Path
 from result import Result, Ok, Err
 
@@ -16,6 +17,10 @@ def project_root() -> Path:
 
 def src_root() -> Path:
     return Path(__file__).parent.parent
+
+def caller_src_path():
+    # adjust frame index if moved!
+    return Path(inspect.stack()[2].filename)
 
 def print_result(result: Result, color_ok='green', color_err='red', color_body='gray') -> None:
     match result:

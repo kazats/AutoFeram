@@ -10,7 +10,7 @@ from src.lib.Config import FeramConfig, Material, Setup, SetupDict, merge_setups
 
 class Runner(NamedTuple):
     sim_name: str
-    working_dir: Path
+    output_dir: Path
     feram_path: Path
 
 

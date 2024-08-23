@@ -11,25 +11,31 @@ from src.lib.Ovito import WriteOvito
 from src.lib.Util import *
 
 
-def run(runner: Runner, temp_config: TempConfig) -> OperationR:
-    sim_name, working_dir, feram_bin = runner
-    _, temps, config                 = temp_config
-    src_file                         = Path(__file__)
+def run(runner: Runner, temp_config: TempConfig, add_pre: Operation = Empty()) -> OperationR:
+    sim_name, output_dir, feram_bin = runner
+    _, temps, config                = temp_config
+    src_file                        = caller_src_path()
 
-    feram_file      = working_dir / f'{sim_name}.feram'
-    avg_file        = working_dir / f'{sim_name}.avg'
-    thermo_file     = working_dir / 'thermo.avg'
-    coord_dir       = working_dir / 'coords'
-    dipoRavg_dir    = working_dir / 'dipoRavg'
-    dipoRavg_file   = working_dir / f'{sim_name}.dipoRavg'
-    last_coord_file = working_dir / f'{sim_name}.{config.last_coord()}.coord'
-    restart_file    = working_dir / f'{sim_name}.restart'
+    feram_file      = output_dir / f'{sim_name}.feram'
+    avg_file        = output_dir / f'{sim_name}.avg'
+    thermo_file     = output_dir / 'thermo.avg'
+    coord_dir       = output_dir / 'coords'
+    dipoRavg_dir    = output_dir / 'dipoRavg'
+    dipoRavg_file   = output_dir / f'{sim_name}.dipoRavg'
+    last_coord_file = output_dir / f'{sim_name}.{config.last_coord()}.coord'
+    restart_file    = output_dir / f'{sim_name}.restart'
+
+    artifacts_dir   = output_dir / '_artifacts'
+    ovito_dir       = artifacts_dir / 'ovito'
+    af_src_file     = artifacts_dir / f'AutoFeram_{src_file.name}'
+    parquet_file    = artifacts_dir / f'{sim_name}.parquet'
 
     pre = OperationSequence([
-        MkDirs(DirOut(working_dir)),
+        MkDirs(DirOut(output_dir)),
         MkDirs(DirOut(coord_dir)),
         MkDirs(DirOut(dipoRavg_dir)),
-        Cd(DirIn(working_dir))
+        Cd(DirIn(output_dir)),
+        add_pre
     ])
 
     def step(temperature: int) -> OperationSequence:
@@ -52,12 +58,17 @@ def run(runner: Runner, temp_config: TempConfig) -> OperationR:
     steps = OperationSequence(map(step, temps))
 
     post = OperationSequence([
-        Copy(FileIn(src_file), FileOut(working_dir / f'AutoFeram_{src_file.name}')),
         Remove(FileIn(restart_file)),
-        WriteOvito(FileOut(working_dir / 'coords.ovt'), DirIn(coord_dir), 'coord'),
-        WriteOvito(FileOut(working_dir / 'dipoRavgs.ovt'), DirIn(dipoRavg_dir), 'dipoRavg'),
-        WriteParquet(FileOut(working_dir / f'{working_dir.name}.parquet'), lambda: post_process_temp(runner, temp_config)),
-        Archive(DirIn(working_dir), FileOut(project_root() / 'output' / f'{working_dir.name}.tar.gz'))
+
+        MkDirs(DirOut(artifacts_dir)),
+        Copy(FileIn(src_file), FileOut(af_src_file)),
+
+        MkDirs(DirOut(ovito_dir)),
+        WriteOvito(DirIn(coord_dir), FileOut(ovito_dir / 'coords.ovt'), 'coord'),
+        WriteOvito(DirIn(dipoRavg_dir), FileOut(ovito_dir / 'dipoRavgs.ovt'), 'dipoRavg'),
+
+        WriteParquet(FileOut(parquet_file), lambda: post_process_temp(runner, temp_config)),
+        Archive(DirIn(output_dir), FileOut(project_root() / 'output' / f'{output_dir.name}.tar.gz'))
     ])
 
     return OperationSequence([
@@ -65,6 +76,7 @@ def run(runner: Runner, temp_config: TempConfig) -> OperationR:
         steps,
         post,
         Success(src_file.name)
+        # Success(working_dir.name)
     ]).run()
 
 
@@ -72,7 +84,7 @@ if __name__ == "__main__":
     runner = Runner(
         sim_name    = 'bto',
         feram_path  = feram_with_fallback(Path.home() / 'feram_dev/build/src/feram'),
-        working_dir = project_root() / 'output' / f'temperature_{timestamp()}',
+        output_dir  = project_root() / 'output' / f'temperature_{timestamp()}',
     )
 
     config = temp_config(
@@ -93,7 +105,6 @@ if __name__ == "__main__":
             #     epi_strain = Vec3(0.01, 0.01, 0)
             # )
         ]
-
     )
 
     run(runner, config)

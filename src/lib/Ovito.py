@@ -81,30 +81,30 @@ def write_dump(dump_path: Path, dipo_files: Sequence[Path], mod_file: Optional[P
 
 
 class WriteOvito(Operation):
-    def __init__(self, file: FileOut, working_dir: DirIn, ext: str, mod_file: Optional[FileIn] = None) -> None:
-        super().__init__(lambda: self.do(file, working_dir, ext, mod_file))
+    def __init__(self, input_dir: DirIn, output_file: FileOut, ext: str, mod_file: Optional[FileIn] = None) -> None:
+        super().__init__(lambda: self.do(input_dir, output_file, ext, mod_file))
 
     @as_result(Exception)
     def safe_write(self, file: FileOut, dipo_files: Sequence[Path], mod_file: Optional[FileIn]):
         write_dump(file.path, dipo_files, mod_file.path if mod_file else None)
 
-    def do(self, file: FileOut, working_dir: DirIn, ext: str, mod_file: Optional[FileIn]) -> OperationR:
+    def do(self, input_dir: DirIn, output_file: FileOut, ext: str, mod_file: Optional[FileIn]) -> OperationR:
         def natsort(file: Path) -> list[str | int]:
             return [int(t) if t.isdigit() else t.lower() for t in re.split(r'(\d+)', file.name)]
 
-        dipo_files = sorted(working_dir.path.glob(f'*.{ext}'), key = natsort)
+        dipo_files = sorted(input_dir.path.glob(f'*.{ext}'), key = natsort)
         # print(dipo_files)
 
         def dipo_files_exist(dipo_files: Sequence[Path]) -> Result[Sequence[Path], str]:
             if len(dipo_files) > 0:
                 return Ok(dipo_files)
             else:
-                return Err(f'No *.{ext} file found in {working_dir}')
+                return Err(f'No *.{ext} file found in {input_dir}')
 
         return do(
             Ok(res)
             for checked_dipos in dipo_files_exist(dipo_files)
-            for checked_out   in file.check_preconditions()
+            for checked_out   in output_file.check_preconditions()
             for checked_in    in (mod_file.check_preconditions() if mod_file else Ok(None))
             for res in self.safe_write(checked_out, checked_dipos, checked_in)
-        ).map(lambda _: f'{type(self).__name__}: {file.path}').map_err(lambda x: f'{type(self).__name__}: {x}')
+        ).map(lambda _: f'{type(self).__name__}: {output_file.path}').map_err(lambda x: f'{type(self).__name__}: {x}')
