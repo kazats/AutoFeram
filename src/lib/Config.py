@@ -44,18 +44,18 @@ class General(Setup):
     slice_directory: str        = 'never'
 
     # initial dipole
-    init_dipo_avg: Vec3[float]  = Vec3(0.0, 0.0, 0.0)    # [Angstrom] Average of initial dipole displacements
+    init_dipo_avg: Vec3[float]  = Vec3(0, 0, 0)          # [Angstrom] Average of initial dipole displacements
     init_dipo_dev: Vec3[float]  = Vec3(0.02, 0.02, 0.02) # [Angstrom] Deviation of initial dipole displacement
 
 
 @dataclass
 class Strain(Setup):
-    epi_strain: Vec3[float] = Vec3(0.00, 0.00, 0.00)
+    epi_strain: Vec3[float] = Vec3(0, 0, 0)
 
 
 @dataclass
 class EFieldStatic(Setup):
-    external_E_field: Vec3[float] = Vec3(0.00, 0.00, 0.00)
+    external_E_field: Vec3[float] = Vec3(0, 0, 0)
 
 
 class EWaveType(StrEnum):
@@ -66,10 +66,10 @@ class EWaveType(StrEnum):
 
 @dataclass
 class EFieldDynamic(Setup):
-    n_E_wave_period: int          = 0   # must be divisible by 4 if TriSin or TriCos
+    n_E_wave_period: int          = 0  # must be divisible by 4 if TriSin or TriCos
     n_hl_freq: int                = 10000
     E_wave_type: EWaveType        = EWaveType.RampOff
-    external_E_field: Vec3[float] = Vec3(0.00, 0.00, 0.00)
+    external_E_field: Vec3[float] = Vec3(0, 0, 0)
 
 
 def merge_setups(setups: Sequence[Setup]) -> dict[str, Any]:
