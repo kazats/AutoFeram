@@ -111,6 +111,16 @@ class Empty(Operation):
         return Ok(type(self).__name__)
 
 
+class Message(Operation):
+    def __init__(self, message: str):
+        self.message = message
+
+    def run(self) -> OperationR:
+        res = Ok(self.message)
+        print_result(res, color_ok='magenta', color_body='magenta', text_ok='Message')
+        return res
+
+
 class Success(Operation):
     def __init__(self, message: str):
         self.message = message
