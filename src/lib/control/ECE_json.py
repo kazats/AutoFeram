@@ -1,7 +1,6 @@
-import polars as pl
 from pathlib import Path
 from functools import reduce
-from itertools import accumulate, zip_longest
+from itertools import zip_longest
 
 from src.lib.common import *
 from src.lib.control.common import *
@@ -47,7 +46,7 @@ def run(runner: Runner, ece_config: ECEConfig) -> OperationR:
 
     post = OperationSequence([
         Copy(FileIn(Path(__file__)), FileOut(working_dir / 'AutoFeram_control.py')),
-        WriteParquet(FileOut(working_dir / f'{working_dir.name}.parquet'), lambda: post_process(runner, ece_config)),
+        WriteParquet(FileOut(working_dir / f'{working_dir.name}.parquet'), lambda: post_process_ece(runner, ece_config)),
         Archive(DirIn(working_dir), FileOut(project_root() / 'output' / f'{working_dir.name}.tar.gz'))
     ])
 
@@ -59,28 +58,6 @@ def run(runner: Runner, ece_config: ECEConfig) -> OperationR:
     ])
 
     return all.run()
-
-
-def post_process(runner: Runner, config: ECEConfig) -> pl.DataFrame:
-    sim_name, working_dir, _ = runner
-    json_name = f'{sim_name}.json'
-
-    def mk_df(step_dir: str, setup: SetupDict) -> pl.DataFrame:
-        df = pl.read_json(working_dir / step_dir / json_name, schema = LOG_SCHEMA)
-
-        return df.with_columns(
-            step  = pl.lit(step_dir),
-            dt_fs = pl.lit(setup['dt'] * 1000)
-        )
-
-    merged_df = pl.concat([mk_df(step_dir, config.setup) for step_dir, config in config.steps.items()])
-    time      = pl.Series(accumulate(merged_df['dt_fs'], lambda acc, x: acc + x))
-    time_adj  = time - merged_df['dt_fs'][0]  # make time_fs start from 0
-
-    return merged_df.with_columns(
-        time_fs = pl.Series(time_adj),
-        kelvin  = pl.col('dipo_kinetic') / (1.5 * BoltzmannConst)
-    )
 
 
 if __name__ == "__main__":
