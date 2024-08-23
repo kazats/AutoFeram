@@ -3,9 +3,9 @@ from pathlib import Path
 from src.lib.common import Int3
 from src.lib.control import Temperature
 from src.lib.control.common import Runner, TempRange, temp_config
-from src.lib.materials.BST import BST
 from src.lib.Config import General, Structure
 from src.lib.Domain import ModulationWriter, generate_coords
+from src.lib.Materials import BST
 from src.lib.Util import feram_with_fallback, project_root, timestamp
 
 

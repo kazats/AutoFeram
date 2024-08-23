@@ -3,9 +3,9 @@ from itertools import zip_longest
 
 from src.lib.common import *
 from src.lib.control.common import *
-from src.lib.materials.BTO import BTO
 from src.lib.Config import *
 from src.lib.Domain import *
+from src.lib.Materials import BTO
 from src.lib.Operations import *
 from src.lib.Ovito import WriteOvito
 from src.lib.Util import *
