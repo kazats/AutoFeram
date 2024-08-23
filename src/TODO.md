@@ -6,6 +6,7 @@
 ## process
 - [x] thermo
 - [x] ece
+- [ ] value of missing values in p, p_sigma, etc.?
 
 ## misc
 - [ ] factor out post_process()
