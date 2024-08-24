@@ -136,6 +136,7 @@ class FeramConfig:
 
         return '\n'.join(file_generator())
 
+    @property
     def last_coord(self) -> str:
         total_steps = self.setup['n_thermalize'] + self.setup['n_average']
         return str(total_steps).zfill(10)

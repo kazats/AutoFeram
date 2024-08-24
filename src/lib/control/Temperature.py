@@ -14,15 +14,15 @@ from src.lib.Util import *
 def run(runner: Runner, temp_config: TempConfig, add_pre: Operation = Empty()) -> OperationR:
     sim_name, output_dir, feram_bin = runner
     _, temps, config                = temp_config
-    src_file                        = caller_src_path()
 
+    src_file        = caller_src_path()
     feram_file      = output_dir / f'{sim_name}.feram'
     avg_file        = output_dir / f'{sim_name}.avg'
     thermo_file     = output_dir / 'thermo.avg'
     coord_dir       = output_dir / 'coords'
     dipoRavg_dir    = output_dir / 'dipoRavg'
     dipoRavg_file   = output_dir / f'{sim_name}.dipoRavg'
-    last_coord_file = output_dir / f'{sim_name}.{config.last_coord()}.coord'
+    last_coord_file = output_dir / f'{sim_name}.{config.last_coord}.coord'
     restart_file    = output_dir / f'{sim_name}.restart'
 
     artifacts_dir   = output_dir / '_artifacts'

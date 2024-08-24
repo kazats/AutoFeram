@@ -13,12 +13,12 @@ from src.lib.Util import *
 
 def run(runner: Runner, ece_config: ECEConfig) -> OperationR:
     sim_name, output_dir, feram_bin = runner
-    src_file                         = caller_src_path()
 
-    artifacts_dir   = output_dir / '_artifacts'
-    ovito_dir       = artifacts_dir / 'ovito'
-    af_src_file     = artifacts_dir / f'AutoFeram_{src_file.name}'
-    parquet_file    = artifacts_dir / f'{sim_name}.parquet'
+    src_file      = caller_src_path()
+    artifacts_dir = output_dir / '_artifacts'
+    ovito_dir     = artifacts_dir / 'ovito'
+    af_src_file   = artifacts_dir / f'AutoFeram_{src_file.name}'
+    parquet_file  = artifacts_dir / f'{sim_name}.parquet'
 
     pre = OperationSequence([
         Message('Pre'),
@@ -31,7 +31,7 @@ def run(runner: Runner, ece_config: ECEConfig) -> OperationR:
 
     def step(config: FeramConfig | Any, dir_cur: Path | Any, dir_next: Path | Any) -> OperationSequence:
         feram_file      = dir_cur / f'{sim_name}.feram'
-        last_coord_file = dir_cur / f'{sim_name}.{config.last_coord()}.coord'
+        last_coord_file = dir_cur / f'{sim_name}.{config.last_coord}.coord'
         copy_restart    = Copy(FileIn(last_coord_file),
                                FileOut(dir_next / f'{sim_name}.restart')) if dir_next is not Any else Empty()
 
