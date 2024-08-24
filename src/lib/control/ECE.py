@@ -73,7 +73,7 @@ if __name__ == "__main__":
     runner = Runner(
         sim_name    = 'bto',
         feram_path  = feram_with_fallback(Path.home() / 'feram_dev/build/src/feram'),
-        output_dir  = project_root() / 'output' / f'ece_json_{timestamp()}',
+        output_dir  = project_root() / 'output' / f'ece_{timestamp()}',
     )
 
     efield_initial = Vec3(0.001, 0, 0)
