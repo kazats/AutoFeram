@@ -81,8 +81,8 @@ if __name__ == "__main__":
     efield_static  = EFieldStatic(external_E_field = efield_initial)
 
     common = {
-        'L':      Int3(2, 2, 2),
-        'kelvin': 200,
+        GeneralProps.L(Int3(2, 2, 2)),
+        GeneralProps.kelvin(200)
     }
 
     config = ece_config(

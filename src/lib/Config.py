@@ -1,10 +1,11 @@
 from functools import reduce
 from dataclasses import dataclass, asdict
 from enum import StrEnum
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterable, Iterator
 from typing import Any, NamedTuple, TypeAlias
 
 from src.lib.common import Int3, Vec3, Vec7
+from src.lib.Util import function_name
 
 
 class Method(StrEnum):
@@ -17,6 +18,9 @@ class Structure(StrEnum):
     Bulk = 'bulk'
     Film = 'film'
     Epit = 'epit'
+
+
+SetupDict: TypeAlias = dict[str, Any]
 
 @dataclass
 class Setup:
@@ -47,10 +51,52 @@ class General(Setup):
     init_dipo_avg: Vec3[float]  = Vec3(0, 0, 0)          # [Angstrom] Average of initial dipole displacements
     init_dipo_dev: Vec3[float]  = Vec3(0.02, 0.02, 0.02) # [Angstrom] Deviation of initial dipole displacement
 
+class GeneralProps:
+    @staticmethod
+    def method(value: Method): return function_name(), value
+    @staticmethod
+    def bulk_or_film(value: Structure): return function_name(), value
+    @staticmethod
+    def L(value: Int3): return function_name(), value
+    @staticmethod
+    def dt(value: float): return function_name(), value
+    @staticmethod
+    def GPa(value: float): return function_name(), value
+    @staticmethod
+    def kelvin(value: float): return function_name(), value
+    @staticmethod
+    def Q_Nose(value: float): return function_name(), value
+    @staticmethod
+    def verbose(value: int): return function_name(), value
+    @staticmethod
+    def n_thermalize(value: int): return function_name(), value
+    @staticmethod
+    def n_average(value: int): return function_name(), value
+    @staticmethod
+    def n_coord_freq(value: int): return function_name(), value
+    @staticmethod
+    def distribution_directory(value: str): return function_name(), value
+    @staticmethod
+    def slice_directory(value: str): return function_name(), value
+    @staticmethod
+    def init_dipo_avg(value: Vec3[float]): return function_name(), value
+    @staticmethod
+    def init_dipo_dev(value: Vec3[float]): return function_name(), value
+
+# test = Enum(
+#     value = 'test',
+#     names = [('method', lambda value: ('method', value))]
+# )
+# class test(Enum):
+#     method: Callable[[Method], tuple] = lambda value: ('method', value)
+
 
 @dataclass
 class Strain(Setup):
     epi_strain: Vec3[float] = Vec3(0, 0, 0)
+
+class StrainProps(StrEnum):
+    epi_strain = 'epi_strain'
 
 
 @dataclass
@@ -72,7 +118,7 @@ class EFieldDynamic(Setup):
     external_E_field: Vec3[float] = Vec3(0, 0, 0)
 
 
-def merge_setups(setups: Sequence[Setup]) -> dict[str, Any]:
+def merge_setups(setups: Iterable[Setup]) -> SetupDict:
     dict_setups = map(lambda s: s.to_dict(), setups)
     return reduce(lambda acc, d: acc | d, dict_setups)
 
@@ -110,8 +156,6 @@ class PolarizationParameters(NamedTuple):
     Z_star: float
     factor: float
 
-
-SetupDict: TypeAlias = dict[str, Any]
 
 @dataclass
 class FeramConfig:

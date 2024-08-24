@@ -1,7 +1,7 @@
 import polars as pl
 from pathlib import Path
-from typing import NamedTuple
-from collections.abc import Mapping, Sequence
+from typing import Any, NamedTuple
+from collections.abc import Iterable, Mapping, Sequence
 from itertools import accumulate
 
 from src.lib.common import BoltzmannConst
@@ -62,14 +62,14 @@ class ECEConfig(NamedTuple):
     steps: Mapping[str, FeramConfig]
 
 
-def ece_config(material: Material, common: SetupDict, steps: Mapping[str, Sequence[Setup]]) -> ECEConfig:
+def ece_config(material: Material, common: Iterable[tuple[str, Any]], steps: Mapping[str, Iterable[Setup]]) -> ECEConfig:
     # (n_thermalize + n_average) % n_coord_freq must == 0
     return ECEConfig(
         material = material,
         steps = {
             step: FeramConfig(
                 material = material,
-                setup = merge_setups(setups) | common
+                setup = merge_setups(setups) | dict(common)
             ) for step, setups in steps.items()
         }
     )

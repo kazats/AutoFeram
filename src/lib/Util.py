@@ -1,3 +1,5 @@
+import types
+from typing import cast
 import colors
 import datetime
 import shutil as sh
@@ -21,6 +23,11 @@ def src_root() -> Path:
 def caller_src_path():
     # adjust frame index if moved!
     return Path(inspect.stack()[2].filename)
+
+def function_name():
+    return cast(types.FrameType,
+                cast(types.FrameType,
+                     inspect.currentframe()).f_back).f_code.co_name
 
 def print_result(result: Result, color_ok='green', color_err='red', color_body='dimgray', text_ok='Success') -> None:
     match result:
