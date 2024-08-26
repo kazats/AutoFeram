@@ -95,9 +95,6 @@ class GeneralProps:
 class Strain(Setup):
     epi_strain: Vec3[float] = Vec3(0, 0, 0)
 
-class StrainProps(StrEnum):
-    epi_strain = 'epi_strain'
-
 
 @dataclass
 class EFieldStatic(Setup):
