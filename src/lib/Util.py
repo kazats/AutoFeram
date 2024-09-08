@@ -1,11 +1,13 @@
+import argparse
 import types
-from typing import cast
 import colors
 import datetime
 import shutil as sh
 import inspect
+import sys
 from pathlib import Path
 from result import Result, Ok, Err
+from typing import cast
 
 
 def feram_with_fallback(fallback: Path = Path.cwd()) -> Path:
@@ -13,6 +15,18 @@ def feram_with_fallback(fallback: Path = Path.cwd()) -> Path:
     which = sh.which('feram')
 
     return Path(which) if which else fallback
+
+def feram_bin_from_cmd_line():
+    '''Use the feram executable provided by the command-line argument.
+    Otherwise use the executable in $PATH.'''
+    parser = argparse.ArgumentParser(prog='AutoFeram')
+    parser.add_argument('-f', '--feram-bin')
+    feram_bin_arg = parser.parse_args().feram_bin
+
+    if feram_bin_arg:
+        return Path(feram_bin_arg)
+    elif feram_bin_which := sh.which('feram'):
+        return Path(feram_bin_which)
 
 def project_root() -> Path:
     return Path(__file__).parent.parent.parent
@@ -34,7 +48,16 @@ def print_result(result: Result, color_ok='green', color_err='red', color_body='
         case Ok(value):
             print(f"{colors.color(text_ok, color_ok)}\t {colors.color(value, color_body)}")
         case Err(e):
-            print(f"{colors.color('Failure', color_err)}\t {colors.color(e, color_body)}")
+            msg = f"{colors.color('Failure', color_err)}\t {colors.color(e, color_body)}"
+            print(msg)
+            print(msg, file=sys.stderr)
+
+def exit_from_result(result: Result):
+    match result:
+        case Ok(_):
+            sys.exit()
+        case Err(_):
+            sys.exit(1)
 
 def timestamp(format = '%Y-%m-%d'):
     return datetime.datetime.now().strftime(format)
