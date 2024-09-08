@@ -111,4 +111,4 @@ if __name__ == "__main__":
         ]
     )
 
-    run(runner, config)
+    exit_from_result(run(runner, config))
