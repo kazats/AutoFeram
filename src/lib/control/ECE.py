@@ -22,8 +22,7 @@ def run(runner: Runner, ece_config: ECEConfig) -> OperationR:
 
     pre = OperationSequence([
         Message('Pre'),
-        # MkDirs(DirOut(working_dir, preconditions=[dir_doesnt_exist])),
-        MkDirs(DirOut(output_dir)),
+        MkDirs(DirOut(output_dir, preconditions=[dir_doesnt_exist])),
         MkDirs(DirOut(artifacts_dir)),
         MkDirs(DirOut(ovito_dir)),
         *[MkDirs(DirOut(output_dir / step_dir)) for step_dir in ece_config.steps.keys()]
@@ -132,4 +131,4 @@ if __name__ == "__main__":
             ]
         })
 
-    run(runner, config)
+    exit_from_result(run(runner, config))

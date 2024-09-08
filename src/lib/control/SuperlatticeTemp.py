@@ -6,7 +6,7 @@ from src.lib.control.common import Runner, TempRange, temp_config
 from src.lib.Config import General, Structure
 from src.lib.Domain import ModulationWriter, generate_coords
 from src.lib.Materials import BST
-from src.lib.Util import feram_with_fallback, project_root, timestamp
+from src.lib.Util import exit_from_result, feram_with_fallback, project_root, timestamp
 
 
 if __name__ == "__main__":
@@ -42,4 +42,4 @@ if __name__ == "__main__":
         bto_sto = (1, 1)  # sum(bto_sto) should == size.z
     )
 
-    Temperature.run(runner, config, add_pre = mod_writer)
+    exit_from_result(Temperature.run(runner, config, add_pre = mod_writer))
