@@ -72,16 +72,15 @@ def run(runner: Runner, ece_config: ECEConfig) -> OperationR:
 if __name__ == "__main__":
     runner = Runner(
         sim_name    = 'bto',
-        feram_path  = feram_with_fallback(Path.home() / 'feram_dev/build/src/feram'),
+        feram_path  = Path.home() / 'feram_dev/build/src/feram',
         output_dir  = project_root() / 'output' / f'ece_{timestamp()}'
     )
 
-    efield_initial = Vec3(0.001, 0, 0)
-    efield_final   = Vec3[float](0, 0, 0)
-    efield_static  = EFieldStatic(external_E_field = efield_initial)
+    efield_initial = Vec3(0.0007071067811865476, 0.0007071067811865475 ,6.123233995736766e-20)
+    efield_final   = Vec3(0.0, 0, 0)        # efield_final should be Vec3(0.0, 0, 0) when EWaveType.RampOff is used in '3_rampNPE'
 
     common = {
-        GeneralProps.L(Int3(2, 2, 2)),
+        GeneralProps.L(Int3(36, 36, 36)),
         GeneralProps.kelvin(200)
     }
 
@@ -93,30 +92,30 @@ if __name__ == "__main__":
                 General(
                     method       = Method.MD,
                     n_thermalize = 0,
-                    n_average    = 8, #0000
-                    n_coord_freq = 2, #0000
+                    n_average    = 80000,
+                    n_coord_freq = 20000,
                 ),
-                efield_static
+                EFieldStatic(external_E_field = efield_initial)
             ],
             '2_preNPE': [
                 General(
                     method       = Method.LF,
                     n_thermalize = 0,
-                    n_average    = 12, #0000
-                    n_coord_freq = 2, #0000
+                    n_average    = 120000,
+                    n_coord_freq = 20000,
                 ),
-                efield_static
+                EFieldStatic(external_E_field = efield_initial)
             ],
             '3_rampNPE': [
                 General(
                     method       = Method.LF,
-                    n_thermalize = 10, #0000
+                    n_thermalize = 100000,
                     n_average    = 0,
-                    n_coord_freq = 2, #0000
+                    n_coord_freq = 20000,
                 ),
                 EFieldDynamic(
-                    n_hl_freq        = 1, #00
-                    n_E_wave_period  = 4, #100000,
+                    n_hl_freq        = 100,
+                    n_E_wave_period  = 100000,
                     E_wave_type      = EWaveType.RampOff,
                     external_E_field = efield_initial
                 )
@@ -125,10 +124,10 @@ if __name__ == "__main__":
                 General(
                     method       = Method.LF,
                     n_thermalize = 0,
-                    n_average    = 18, #0000
-                    n_coord_freq = 2, #0000
+                    n_average    = 180000,
+                    n_coord_freq = 20000,
                 ),
-                efield_static
+                EFieldStatic(external_E_field = efield_final)
             ]
         })
 
