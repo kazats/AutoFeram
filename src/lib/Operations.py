@@ -1,6 +1,7 @@
 import polars as pl
 import subprocess as sub
 import os
+import re
 import shutil
 import tarfile
 from functools import reduce
@@ -295,10 +296,21 @@ class Feram(Operation):
         super().__init__(lambda: self.do(feram_bin, feram_input))
 
     def do(self, feram_bin: Exec, feram_input: FileIn) -> OperationR:
+        def supports_json_log(version: str) -> Result[bool, bool]:
+            if re.search('json_log', version):
+                return Ok(True)
+            else:
+                return Err(False)
+
         return do(
             Ok(res)
             for checked_feram_bin in feram_bin.check_preconditions()
             for checked_feram_input in feram_input.check_preconditions()
+            for version in from_completed_process(
+                sub.run([checked_feram_bin.path, '-v'],
+                        capture_output=True,
+                        universal_newlines=True))
+            for _ in supports_json_log(version)
             for res in from_completed_process(
                 sub.run([checked_feram_bin.path, checked_feram_input.path]))
                 # sub.run([checked_feram_bin.path, checked_feram_input.path],
