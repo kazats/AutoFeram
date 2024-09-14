@@ -11,7 +11,7 @@ from src.lib.Ovito import WriteOvito
 from src.lib.Util import *
 
 
-def run(runner: Runner, ece_config: ECEConfig) -> OperationR:
+def run(runner: Runner, ece_config: ECEConfig, add_pre: Operation = Empty()) -> OperationR:
     sim_name, output_dir, feram_bin = runner
 
     src_file      = caller_src_path()
@@ -25,7 +25,8 @@ def run(runner: Runner, ece_config: ECEConfig) -> OperationR:
         MkDirs(DirOut(output_dir, preconditions=[dir_doesnt_exist])),
         MkDirs(DirOut(artifacts_dir)),
         MkDirs(DirOut(ovito_dir)),
-        *[MkDirs(DirOut(output_dir / step_dir)) for step_dir in ece_config.steps.keys()]
+        *[MkDirs(DirOut(output_dir / step_dir)) for step_dir in ece_config.steps.keys()],
+        add_pre
     ])
 
     def step(config: FeramConfig | Any, dir_cur: Path | Any, dir_next: Path | Any) -> OperationSequence:
@@ -77,10 +78,11 @@ if __name__ == "__main__":
 
     efield_initial = Vec3(0.0007071067811865476, 0.0007071067811865475 ,6.123233995736766e-20)
     efield_final   = Vec3(0.0, 0, 0)        # efield_final should be Vec3(0.0, 0, 0) when EWaveType.RampOff is used in '3_rampNPE'
+    temperature = 380
 
     common = {
         GeneralProps.L(Int3(36, 36, 36)),
-        GeneralProps.kelvin(200)
+        GeneralProps.kelvin(temperature)
     }
 
     config = ece_config(
