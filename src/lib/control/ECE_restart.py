@@ -14,15 +14,15 @@ from src.lib.Util import *
 
 
 if __name__ == "__main__":
-    runner = Runner(
-        sim_name    = 'bto',
-        feram_path  = Path.home() / 'feram_dev/build/src/feram',
-        output_dir = project_root() / 'output' / f'ece_{timestamp()}'
-    )
-
     efield_initial = Vec3(0.0007071067811865476, 0.0007071067811865475 ,6.123233995736766e-20)
     efield_final   = Vec3(0.0, 0, 0)        # efield_final should be Vec3(0.0, 0, 0) when EWaveType.RampOff is used in '3_rampNPE'
     temperature = 380
+
+    runner = Runner(
+        sim_name    = 'bto',
+        feram_path  = Path.home() / 'feram_dev/build/src/feram',
+        output_dir = project_root() / 'output' / f'ece_at{temperature}_{timestamp()}'
+    )
 
     common = {
         GeneralProps.L(Int3(36, 36, 36)),
