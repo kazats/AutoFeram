@@ -18,6 +18,7 @@ class Structure(StrEnum):
     Bulk = 'bulk'
     Film = 'film'
     Epit = 'epit'
+    Strn_T = 'strn_T'
 
 
 SetupDict: TypeAlias = dict[str, Any]
