@@ -3,6 +3,7 @@ from dataclasses import dataclass, asdict
 from enum import StrEnum
 from collections.abc import Iterable, Iterator
 from typing import Any, NamedTuple, TypeAlias
+import random
 
 from src.lib.common import Int3, Vec3, Vec7
 from src.lib.Util import function_name
@@ -115,6 +116,16 @@ class EFieldDynamic(Setup):
     E_wave_type: EWaveType        = EWaveType.RampOff
     external_E_field: Vec3[float] = Vec3(0, 0, 0)
 
+def generate_randomseed():
+    # generate integers for Marsaglia-Tsang 64-bit universal RNG
+    return random.randint(0, 32767) * 65536 + random.randint(0, 32767) 
+
+def formated_randomseeds():
+    return str(f'{generate_randomseed()} {generate_randomseed()}')
+
+@dataclass
+class RandomSeed(Setup):
+    seed: str = '123456789 987654321'
 
 def merge_setups(setups: Iterable[Setup]) -> SetupDict:
     dict_setups = map(lambda s: s.to_dict(), setups)
