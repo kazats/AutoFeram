@@ -1,0 +1,129 @@
+ [
+ {"time_step":       0
+ ,"acou_kinetic":    0.000000000000
+ ,"dipo_kinetic":    0.006732233354
+ ,"short_range":    0.004722307580
+ ,"long_range":   -0.001895797501
+ ,"dipole_E_field":    0.000000000000
+ ,"unharmonic":    0.000025511998
+ ,"homo_strain":    0.000002586505
+ ,"homo_coupling":   -0.000005173009
+ ,"inho_strain":    0.000002285725
+ ,"inho_coupling":   -0.000004571450
+ ,"inho_modulation":    0.000000000000
+ ,"total_energy":    0.009579383202
+ ,"H_Nose_Poincare":    0.000000000000
+ ,"s_Nose":    1.00000000
+ ,"pi_Nose":    0.00000000
+ }
+ ,{"time_step":       1
+ ,"acou_kinetic":    0.000000000000
+ ,"dipo_kinetic":    0.007916735945
+ ,"short_range":    0.003815589160
+ ,"long_range":   -0.002174350103
+ ,"dipole_E_field":    0.000000000000
+ ,"unharmonic":    0.000016617705
+ ,"homo_strain":    0.000001838666
+ ,"homo_coupling":   -0.000003677332
+ ,"inho_strain":    0.000001549464
+ ,"inho_coupling":   -0.000003098928
+ ,"inho_modulation":    0.000000000000
+ ,"total_energy":    0.009571204576
+ ,"H_Nose_Poincare":   -0.000008182861
+ ,"s_Nose":    0.99999972
+ ,"pi_Nose":   -0.00406811
+ }
+ ,{"time_step":       2
+ ,"acou_kinetic":    0.000000000000
+ ,"dipo_kinetic":    0.008703254763
+ ,"short_range":    0.003123895096
+ ,"long_range":   -0.002270018515
+ ,"dipole_E_field":    0.000000000000
+ ,"unharmonic":    0.000011856001
+ ,"homo_strain":    0.000001398782
+ ,"homo_coupling":   -0.000002797563
+ ,"inho_strain":    0.000001161209
+ ,"inho_coupling":   -0.000002322418
+ ,"inho_modulation":    0.000000000000
+ ,"total_energy":    0.009566427355
+ ,"H_Nose_Poincare":   -0.000012973569
+ ,"s_Nose":    0.99999892
+ ,"pi_Nose":   -0.00788057
+ }
+ ,{"time_step":       3
+ ,"acou_kinetic":    0.000000000000
+ ,"dipo_kinetic":    0.009015434028
+ ,"short_range":    0.002708534415
+ ,"long_range":   -0.002166413847
+ ,"dipole_E_field":    0.000000000000
+ ,"unharmonic":    0.000010297070
+ ,"homo_strain":    0.000001210493
+ ,"homo_coupling":   -0.000002420985
+ ,"inho_strain":    0.000001086230
+ ,"inho_coupling":   -0.000002172460
+ ,"inho_modulation":    0.000000000000
+ ,"total_energy":    0.009565554944
+ ,"H_Nose_Poincare":   -0.000013869159
+ ,"s_Nose":    0.99999763
+ ,"pi_Nose":   -0.01155093
+ }
+ ,{"time_step":       4
+ ,"acou_kinetic":    0.000000000000
+ ,"dipo_kinetic":    0.008838548109
+ ,"short_range":    0.002598668925
+ ,"long_range":   -0.001877280253
+ ,"dipole_E_field":    0.000000000000
+ ,"unharmonic":    0.000011149357
+ ,"homo_strain":    0.000001225701
+ ,"homo_coupling":   -0.000002451402
+ ,"inho_strain":    0.000001268626
+ ,"inho_coupling":   -0.000002537252
+ ,"inho_modulation":    0.000000000000
+ ,"total_energy":    0.009568591811
+ ,"H_Nose_Poincare":   -0.000010864333
+ ,"s_Nose":    0.99999584
+ ,"pi_Nose":   -0.01520452
+ }
+ ,{"time_step":       5
+ ,"acou_kinetic":    0.000000000000
+ ,"dipo_kinetic":    0.008219602803
+ ,"short_range":    0.002789436789
+ ,"long_range":   -0.001445015738
+ ,"dipole_E_field":    0.000000000000
+ ,"unharmonic":    0.000014118168
+ ,"homo_strain":    0.000001427789
+ ,"homo_coupling":   -0.000002855579
+ ,"inho_strain":    0.000001656892
+ ,"inho_coupling":   -0.000003313784
+ ,"inho_modulation":    0.000000000000
+ ,"total_energy":    0.009575057340
+ ,"H_Nose_Poincare":   -0.000004437818
+ ,"s_Nose":    0.99999357
+ ,"pi_Nose":   -0.01896242
+ ,"u":[  0.004155,  0.000397,  0.005063]
+ ,"u_sigma":[  0.009708,  0.007846,  0.012999]
+ ,"p":[  0.042924,  0.004105,  0.052302]
+ ,"p_sigma":[  0.100286,  0.081045,  0.134280]
+ }
+ ,{"time_step":       6
+ ,"acou_kinetic":    0.000000000000
+ ,"dipo_kinetic":    0.007259724716
+ ,"short_range":    0.003244135517
+ ,"long_range":   -0.000935109912
+ ,"dipole_E_field":    0.000000000000
+ ,"unharmonic":    0.000019340361
+ ,"homo_strain":    0.000001825799
+ ,"homo_coupling":   -0.000003651598
+ ,"inho_strain":    0.000002215537
+ ,"inho_coupling":   -0.000004431075
+ ,"inho_modulation":    0.000000000000
+ ,"total_energy":    0.009584049345
+ ,"H_Nose_Poincare":    0.000004510841
+ ,"s_Nose":    0.99999078
+ ,"pi_Nose":   -0.02292636
+ ,"u":[  0.004264,  0.000408,  0.005212]
+ ,"u_sigma":[  0.010913,  0.008355,  0.013734]
+ ,"p":[  0.044050,  0.004210,  0.053837]
+ ,"p_sigma":[  0.112733,  0.086303,  0.141873]
+ }
+ ]

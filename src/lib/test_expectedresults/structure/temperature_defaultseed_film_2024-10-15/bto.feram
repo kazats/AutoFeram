@@ -1,0 +1,37 @@
+# material
+mass_amu = 38.24
+a0 = 3.98597
+Z_star = 10.33
+B11 = 126.731671475652
+B12 = 41.7582963902598
+B44 = 49.2408864348646
+B1xx = -185.347187551195
+B1yy = -3.28092949275457
+B4yz = -14.5501738943852
+P_k1 = -267.98013991724
+P_k2 = 197.500718362573
+P_k3 = 830.199979293529
+P_k4 = 641.968099408642
+P_alpha = 78.9866142426818
+P_gamma = -115.484148812672
+P_kappa2 = 8.53400622096412
+j = -2.08403 -1.12904 0.68946 -0.61134 0.0 0.2769 0.0
+epsilon_inf = 6.86915
+
+# setup
+method = md
+bulk_or_film = film
+L = 4 4 4
+dt = 0.002
+GPa = 0
+kelvin = 180
+Q_Nose = 15
+verbose = 4
+n_thermalize = 4
+n_average = 2
+n_coord_freq = 6
+distribution_directory = never
+slice_directory = never
+init_dipo_avg = 0 0 0
+init_dipo_dev = 0.02 0.02 0.02
+seed = 123456789 987654321
