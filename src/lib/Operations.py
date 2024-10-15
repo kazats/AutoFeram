@@ -20,7 +20,7 @@ def from_completed_process(completed_process: sub.CompletedProcess) -> Result[st
     if completed_process.returncode == 0:
         return Ok(completed_process.stdout)
     else:
-        return Err(f'[{completed_process.returncode}] {completed_process.stderr}')
+        return Err(f'returned error code {completed_process.returncode}:\n{completed_process.stderr}')
 
 def rel_to_project_root(path: Path) -> Path:
     return path.relative_to(project_root())
@@ -164,7 +164,7 @@ class WithDir(Operation):
             for _ in Cd(working_dir)
             for _ in operation
             for dir_from in Cd(return_dir)
-        ).map(lambda _: f'{type(self).__name__}: {working_dir.path}').map_err(lambda x: f'{type(self).__name__}: {x}')
+        ).map(lambda _: f'{type(self).__name__}: {working_dir.path}').map_err(lambda _: f'{type(self).__name__}: {working_dir.path}')
 
 
 class Remove(Operation):
@@ -312,10 +312,10 @@ class Feram(Operation):
                         universal_newlines=True))
             for _ in supports_json_log(version)
             for res in from_completed_process(
-                sub.run([checked_feram_bin.path, checked_feram_input.path]))
-                # sub.run([checked_feram_bin.path, checked_feram_input.path],
-                #         capture_output=True,
-                #         universal_newlines=True))
+                # sub.run([checked_feram_bin.path, checked_feram_input.path]))
+                sub.run([checked_feram_bin.path, checked_feram_input.path],
+                        capture_output=True,
+                        universal_newlines=True))
         ).map(lambda _: f'{type(self).__name__}').map_err(lambda x: f'{type(self).__name__}: {x}')
 
 
