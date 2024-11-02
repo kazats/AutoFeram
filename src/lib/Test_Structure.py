@@ -11,7 +11,7 @@ testing_strnT = Path.home() / 'AutoFeram' / 'output' / 'verification' / 'tempera
 testing_film  = Path.home() / 'AutoFeram' / 'output' / 'verification' / 'temperature_defaultseed_film_2024-10-15'   / 'thermo.avg'
 testing_epit  = Path.home() / 'AutoFeram' / 'output' / 'verification' / 'temperature_defaultseed_epit_2024-10-15'  / 'thermo.avg'
 
-'''do not touch the followings'''
+'''do not touch the following'''
 expected_bulk  = Path.home() / 'AutoFeram' / 'src' / 'lib' / 'test_expectedresults'  / 'structure' / 'temperature_defaultseed_bulk_2024-10-15'  / 'thermo.avg'
 expected_strnT = Path.home() / 'AutoFeram' / 'src' / 'lib' / 'test_expectedresults'  / 'structure' / 'temperature_defaultseed_strnT0.01_2024-10-15' / 'thermo.avg'
 expected_film  = Path.home() / 'AutoFeram' / 'src' / 'lib' / 'test_expectedresults'  / 'structure' / 'temperature_defaultseed_film_2024-10-15'  / 'thermo.avg'
@@ -32,7 +32,7 @@ if __name__ == '__main__':
     if all(results['same']):
         print('clear. everything is fine.')
     else:
-        print('The followins are wrong:')
+        print('The following are wrong:')
         mask = (results['same']==False)
         [ print(f'    {i}') for i in results[mask].index ]
 
