@@ -6,6 +6,15 @@ BoltzmannConst: float = 8.617e-5
 
 T1 = TypeVar('T1')
 
+class Vec2(NamedTuple, Generic[T1]):
+    x: T1
+    y: T1
+
+    def __str__(self) -> str:
+        return f'{self.x} {self.y}'
+
+Int2: TypeAlias = Vec2[int]
+
 class Vec3(NamedTuple, Generic[T1]):
     x: T1
     y: T1
