@@ -8,3 +8,5 @@ __pycache__/
 pyvenv.cfg
 howto_pythonvenv.txt
 tags
+uv.lock
+.python-version
