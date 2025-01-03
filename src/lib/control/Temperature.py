@@ -4,7 +4,6 @@ from pathlib import Path
 from src.lib.common import *
 from src.lib.control.common import *
 from src.lib.Config import *
-from src.lib.Log import *
 from src.lib.Materials import BTO
 from src.lib.Operations import *
 from src.lib.Ovito import WriteOvito
