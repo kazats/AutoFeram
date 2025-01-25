@@ -98,9 +98,8 @@ def find_closest_domain(domains: Sequence[Domain], coord: Int3) -> Domain:
         return np.linalg.norm(np.fromiter(p1, int) - np.fromiter(p2, int))
 
     return min(
-        map(lambda domain: (domain, distance(domain.seed, coord)),
-            domains),
-        key=lambda x: x[1],
+        ((domain, distance(domain.seed, coord)) for domain in domains),
+        key=lambda x: float(x[1]),
     )[0]
 
 
