@@ -59,6 +59,7 @@ class System:
         """
         # if x==0 or y==0 or z==0 or x==size or y==size or z==size:
         #     return [[x+d,y,z],[x-d,y,z],[x,y+d,z],[x,y-d,z],[x,y,z+d],[x,y,z-d]]
+        # find_neighbors() returns at most 6 Points
 
         * think how to deal with point at the boundary of the system
         under periodic boundary condition : probably not needed
