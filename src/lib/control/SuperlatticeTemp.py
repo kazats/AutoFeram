@@ -12,7 +12,7 @@ from src.lib.Util import exit_from_result, feram_with_fallback, project_root, ti
 if __name__ == "__main__":
     runner = Runner(
         sim_name    = 'bst',
-        feram_path  = Path.home() / 'feram_dev/build/src/feram',
+        feram_path  = feram_with_fallback(Path.home() / 'Code/git/feram-0.26.04_dev/build/src/feram'),
         output_dir  = project_root() / 'output' / f'superlattice_temp_{timestamp()}'
     )
 
