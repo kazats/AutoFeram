@@ -4,7 +4,7 @@ from src.lib.common import Int3
 from src.lib.control import Temperature
 from src.lib.control.common import Runner, TempRange, temp_config
 from src.lib.Config import General, Structure
-from src.lib.Domain import Domain, LocalfieldWriter, Props
+from src.lib.Domain import Domain, LocalfieldWriter, RegionalLocalfieldWriter, Props
 from src.lib.Materials import BTO
 from src.lib.Util import exit_from_result, feram_with_fallback, project_root, timestamp
 
@@ -21,7 +21,7 @@ if __name__ == "__main__":
         temp_range = TempRange(initial = 350, final = 340, delta = -5),
         setup = [
             General(
-                L            = Int3(3, 3, 3),
+                L            = Int3(10, 10, 10),
                 n_thermalize = 4,
                 n_average    = 2,
                 n_coord_freq = 6,
@@ -36,13 +36,23 @@ if __name__ == "__main__":
         ]
     )
 
-    lf_writer = LocalfieldWriter(
+    ''' to apply localfield on the whole system, to create multidomain structure '''
+    # lf_writer = LocalfieldWriter(
+    #     output_path = runner.output_dir / f'{runner.sim_name}.localfield',
+    #     size = config.config.setup['L'],
+    #     domains = [Domain(Int3(0, 0, 0), Props(0, 0, 0)),
+    #                Domain(Int3(1, 0, 0), Props(0, 1, 0)),
+    #                # Domain(Int3(12, 47, 0), Props(1, 0, 0)),
+    #                # Domain(Int3(24, 24, 0), Props(0, -1, 0)),
+    #                ]
+    # )
+    #
+
+    ''' to apply localfield on specific regions '''
+    lf_writer = RegionalLocalfieldWriter(
         output_path = runner.output_dir / f'{runner.sim_name}.localfield',
-        size = config.config.setup['L'],
-        domains = [Domain(Int3(0, 0, 0), Props(0, 0, 0)),
-                   Domain(Int3(1, 0, 0), Props(0, 1, 0)),
-                   # Domain(Int3(12, 47, 0), Props(1, 0, 0)),
-                   # Domain(Int3(24, 24, 0), Props(0, -1, 0)),
+        domains = [Domain(Int3(10, 10, 10), Props(0, 0.1, 0), delta = Int3(-2,2,0)),
+                   Domain(Int3(2, 2, 2), Props(0, 0.2, 0), delta = Int3(-2,2,0))
                    ]
     )
 
