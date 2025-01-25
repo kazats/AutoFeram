@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 from result import Result, Ok, Err
 from typing import cast
+from collections.abc import Iterable
 
 
 def feram_with_fallback(fallback: Path = Path.cwd()) -> Path:
@@ -61,3 +62,6 @@ def exit_from_result(result: Result):
 
 def timestamp(format = '%Y-%m-%d'):
     return datetime.datetime.now().strftime(format)
+
+def inclusive_range(a: int, b: int) -> Iterable[int]:
+    return range(min(a, b), max(a, b) + 1, 1)
