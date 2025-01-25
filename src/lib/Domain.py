@@ -1,7 +1,3 @@
-#!/usr/bin/env python
-# author: Lan-Tien Hsu
-
-# python version: 3.11.8 (higher than 3.10 should work)
 '''
 Define your domain seeds (variables called "Domain", imagine a seed where a specific domain starts to grow)
 and the electric field in xyz direction (variables called "Props") in the __main__ section.
@@ -18,7 +14,7 @@ from itertools import accumulate
 
 from src.lib.common import Int3, Vec3
 from src.lib.Operations import Write, FileOut
-from src.lib.Util import project_root
+from src.lib.Util import project_root, inclusive_range
 
 
 Props: TypeAlias = Vec3[float]
@@ -26,6 +22,7 @@ Props: TypeAlias = Vec3[float]
 class Domain(NamedTuple):
     seed: Int3
     props: Props
+    delta: Optional[Int3] = None
 
 class PointProps(NamedTuple):
     domain: Domain
@@ -172,8 +169,23 @@ def ModulationWriter(output_path: Path, coords: list[Int3], bto_sto: tuple[int, 
                  lambda: '\n'.join(generate_modulation(coords, bto_sto)))
 
 
-if __name__ == '__main__':
-    pass
+def generate_regional_localfield(domains: Sequence[Domain]):
+    for domain in domains:
+        '''generate_regional_localfield((10,10,10), (-2,2,0)) will find the region where x=(10, 10-2), y=(10, 10+2), z=(10,10+0)'''
+        x1, y1, z1 = np.array(domain.seed)
+        x2, y2, z2 = np.array(domain.seed) + np.array(domain.delta)
+        px, py, pz = domain.props
+        for x in inclusive_range(x1, x2):
+            for y in inclusive_range(y1, y2):
+                for z in inclusive_range(z1, z2):
+                    yield f'{x} {y} {z} {px} {py} {pz}'
+
+def RegionalLocalfieldWriter(output_path: Path, domains: Sequence[Domain]):
+    return Write(FileOut(output_path),
+                 lambda: '\n'.join(generate_regional_localfield(domains)))
+ 
+# if __name__ == '__main__':
+#     pass
     # working_dir = project_root() / 'output' / 'domain'
     #
     # size = Int3(2, 1, 6)
