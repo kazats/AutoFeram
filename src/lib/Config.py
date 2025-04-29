@@ -16,10 +16,12 @@ class Method(StrEnum):
     HL = 'hl'
 
 class Structure(StrEnum):
-    Bulk = 'bulk'
-    Film = 'film'
-    Epit = 'epit'
-    Strn_T = 'strn_T'
+    Bulk     = 'bulk'     # unstrained (periodic) bulk
+    Strn_001 = 'strn_001' # bulk strained on (001) surface
+    Strn_110 = 'strn_110' # bulk strained on (110) surface
+    Film     = 'film'     # unstrained (free standing) film
+    Epit_001 = 'epit_001' # film strained on (001) surface
+    Epit_110 = 'epit_110' # film strained on (110) surface
 
 
 SetupDict: TypeAlias = dict[str, Any]
@@ -94,9 +96,13 @@ class GeneralProps:
 
 
 @dataclass
-class Strain(Setup):
+class Strain(Setup):                          # no deadlayer, i.e. gap_id == (feram default) 0
     epi_strain: Vec3[float] = Vec3(0, 0, 0)
 
+@dataclass
+class Film(Setup):      # for free standing or strained thin film, i.e. (in feram's terms) 'film' or 'epit'
+    gap_id:       int         = 0             # gap_id: number of deadlayer (of thickness 1 nm); gap_id should be 1 or 2 for 'Film'; mod(Lz,2)==mod(gap_id,2)
+    gap_dipole_u: Int3        = Int3(0, 0, 0) # polarization of deadlayers [Angstrom]
 
 @dataclass
 class EFieldStatic(Setup):
