@@ -1,0 +1,982 @@
+diff -Naur ./average_module.F ../../../feram-0.26.05/Patch_Lan-Tien/src/average_module.F
+--- ./average_module.F	2026-10-19 12:26:42.060935228 +0200
++++ ../../../feram-0.26.05/Patch_Lan-Tien/src/average_module.F	2025-02-03 18:39:58.000000000 +0100
+@@ -165,15 +165,25 @@
+     if (p%output_polarization) write(UNIT_POLARIZATION, '(f13.10,2f14.10)') p_tmp(1:3)
+ 
+     if (detail) then
+-       write(message,'("<u>   =",3f10.6)') u_tmp(1:3)
++       write(message,'("<u>    ",3f10.6)') u_tmp(1:3)
+        call msg_ez(UNIT_LOG,message)
+-       write(message,'("sigma =",3f10.6)') sqrt(uu_tmp(1:3)/c%n_sum_p - u_tmp(1:3)**2)
++       write(message,'(",""u"":[",2(f10.6,","),f10.6,"]")') u_tmp(1:3)
++       call msg_ez(UNIT_JSON, message)
++
++       write(message,'("sigma  ",3f10.6)') sqrt(uu_tmp(1:3)/c%n_sum_p - u_tmp(1:3)**2)
+        call msg_ez(UNIT_LOG,message)
++       write(message,'(",""u_sigma"":[",2(f10.6,","),f10.6,"]")') sqrt(uu_tmp(1:3)/c%n_sum_p - u_tmp(1:3)**2)
++       call msg_ez(UNIT_JSON, message)
+ 
+-       write(message,'("<p>   =",3f10.6)') p_tmp(1:3)
++       write(message,'("<p>    ",3f10.6)') p_tmp(1:3)
+        call msg_ez(UNIT_LOG,message)
+-       write(message,'("sigma =",3f10.6)') sqrt(pp_tmp(1:3)/c%n_sum_p - p_tmp(1:3)**2)
++       write(message,'(",""p"":[",2(f10.6,","),f10.6,"]")') p_tmp(1:3)
++       call msg_ez(UNIT_JSON, message)
++
++       write(message,'("sigma  ",3f10.6)') sqrt(pp_tmp(1:3)/c%n_sum_p - p_tmp(1:3)**2)
+        call msg_ez(UNIT_LOG,message)
++       write(message,'(",""p_sigma"":[",2(f10.6,","),f10.6,"]")') sqrt(pp_tmp(1:3)/c%n_sum_p - p_tmp(1:3)**2)
++       call msg_ez(UNIT_JSON, message)
+     end if
+   end subroutine add_to_Average
+ 
+@@ -204,6 +214,7 @@
+     avg%strain(:) = avg%strain(:) / p%n_average
+ 
+     if (p%bulk_or_film.eq.'film' .or. p%bulk_or_film.eq.'epit') then
++      ! LT: is it like only film should be here? or strained sample?  n_sum_p and Ninv: (1/Ntot) is what?
+        avg%u(:)  = avg%u(:)  / p%n_average / c%n_sum_p
+        avg%uu(:) = avg%uu(:) / p%n_average / c%n_sum_p
+        avg%p(:)  = avg%p(:)  / p%n_average / c%n_sum_p
+diff -Naur ./average_module.F.orig ../../../feram-0.26.05/Patch_Lan-Tien/src/average_module.F.orig
+--- ./average_module.F.orig	2016-09-23 05:50:54.000000000 +0200
++++ ../../../feram-0.26.05/Patch_Lan-Tien/src/average_module.F.orig	1970-01-01 01:00:00.000000000 +0100
+@@ -1,295 +0,0 @@
+-! average_module.F -*-f90-*-
+-! Time-stamp: <2016-05-13 14:00:42 takeshi>
+-! Author: Takeshi NISHIMATSU
+-!!
+-#if defined HAVE_CONFIG_H
+-#  include "config.h"
+-#endif
+-#include "define.h"
+-module Average_module
+-  use Energy_module
+-  implicit none
+-
+-  real*8,  parameter :: step     = 0.005d0
+-  real*8,  parameter :: step_inv = 1.0d0/step
+-  integer, parameter :: max_k    = 99
+-
+-  type Average_type
+-     type(Energy_type) energy
+-     real*8 e2
+-     real*8 acou_kinetic_true
+-     real*8 dipo_kinetic_true
+-     real*8 strain(6)
+-     real*8 u(3), uu(6)
+-     real*8 p(3), pp(6)
+-     real*8 e_layer_dipo(0:5000)
+-     real*8 e_layer_acou(0:5000)
+-     integer*8, allocatable :: distribution(:,:)   !!! integer*8 !!!
+-     integer,   allocatable :: distribution3d(:,:,:)
+-  end type Average_type
+-
+-contains
+-  subroutine reset_Average(avg)
+-    implicit none
+-    !--- arguments -------------------------------------
+-    type(Average_type), intent(inout) :: avg
+-    !--- END of variable definitions -------------------
+-    avg%energy            = Energy_type(0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0, 0.0d0)
+-    avg%e2                = 0.0d0
+-    avg%acou_kinetic_true = 0.0d0
+-    avg%dipo_kinetic_true = 0.0d0
+-    avg%strain(:)         = 0.0d0
+-    avg%u(:)              = 0.0d0
+-    avg%uu(:)             = 0.0d0
+-    avg%p(:)              = 0.0d0
+-    avg%pp(:)             = 0.0d0
+-    avg%e_layer_dipo(:)   = 0.0d0
+-    avg%e_layer_acou(:)   = 0.0d0
+-
+-    if (allocated(avg%distribution))   deallocate(avg%distribution)
+-    allocate(avg%distribution(3,-max_k:max_k))
+-    if (allocated(avg%distribution3d)) deallocate(avg%distribution3d)
+-    allocate(avg%distribution3d(-max_k:max_k,-max_k:max_k,-max_k:max_k))
+-    avg%distribution(:,:) = 0
+-    avg%distribution3d(:,:,:) = 0
+-  end subroutine reset_Average
+-
+-  subroutine add_to_Average(p,c,e,avg,detail)
+-    use Param_module
+-    use Coord_module
+-    use msg_module
+-    implicit none
+-    !--- arguments -------------------------------------
+-    type(Param_type),   intent(in)    :: p
+-    type(Coord_type),   intent(in)    :: c
+-    type(Energy_type),  intent(in)    :: e
+-    type(Average_type), intent(inout) :: avg
+-    logical,            intent(in)    :: detail
+-    !--- local -----------------------------------------
+-    integer alpha,ix,iy,iz,k,kx,ky,kz
+-    real*8 u_tmp(3),  uu_tmp(3)
+-    real*8 p_tmp(3),  pp_tmp(3)
+-    character(90) message
+-    integer*8 tmp_distribution(3,-max_k:max_k)   !!! integer*8 !!!
+-    !--- END of variable definitions -------------------
+-    avg%energy            = avg%energy            + e
+-    avg%e2                = avg%e2                + e%total**2
+-!   avg%acou_kinetic_true = avg%acou_kinetic_true + e%acou_kinetic/c%s_Nose**2
+-    avg%dipo_kinetic_true = avg%dipo_kinetic_true + e%dipo_kinetic/c%s_Nose**2
+-    avg%strain(:)         = avg%strain(:)         + c%strain(:)
+-
+-    if (p%method.eq.'lf' .and. p%delta_e.ne.0.0d0) then
+-       avg%e_layer_dipo(0:p%Lz-1)   = avg%e_layer_dipo(0:p%Lz-1)   + c%e_layer_dipo(0:p%Lz-1)
+-       avg%e_layer_acou(0:p%Lz-1)   = avg%e_layer_acou(0:p%Lz-1)   + c%e_layer_acou(0:p%Lz-1)
+-    end if
+-
+-     u_tmp(1:3) = 0.0d0
+-    uu_tmp(1:3) = 0.0d0
+-!$omp parallel do private(iz, iy, ix) reduction(+:u_tmp,uu_tmp)
+-    do iz = 0, p%Lz-1
+-       do iy = 0, p%Ly-1
+-          do ix = 0, p%Lx-1
+-             if (c%sum_p(ix,iy,iz)) then
+-                 u_tmp(:) =  u_tmp(:) + c%dipoR(:,ix,iy,iz)
+-                uu_tmp(:) = uu_tmp(:) + c%dipoR(:,ix,iy,iz)**2
+-             end if
+-          end do
+-       end do
+-    end do
+-!$omp end parallel do
+-    avg%u(:) = avg%u(:) + u_tmp(:)
+-    avg%uu(1) = avg%uu(1) + u_tmp(1)**2
+-    avg%uu(2) = avg%uu(2) + u_tmp(2)**2
+-    avg%uu(3) = avg%uu(3) + u_tmp(3)**2
+-    avg%uu(4) = avg%uu(4) + u_tmp(2)*u_tmp(3)
+-    avg%uu(5) = avg%uu(5) + u_tmp(3)*u_tmp(1)
+-    avg%uu(6) = avg%uu(6) + u_tmp(1)*u_tmp(2)
+-
+-     p_tmp(1:3) = 0.0d0
+-    pp_tmp(1:3) = 0.0d0
+-!$omp parallel do private(iz, iy, ix) reduction(+:p_tmp,pp_tmp)
+-    do iz = 0, p%Lz-1
+-       do iy = 0, p%Ly-1
+-          do ix = 0, p%Lx-1
+-             if (c%sum_p(ix,iy,iz)) then
+-                 p_tmp(:) =  p_tmp(:) + c%Z_u_R(:,ix,iy,iz)
+-                pp_tmp(:) = pp_tmp(:) + c%Z_u_R(:,ix,iy,iz)**2
+-             end if
+-          end do
+-       end do
+-    end do
+-!$omp end parallel do
+-    avg%p(:) = avg%p(:) + p_tmp(:)
+-    avg%pp(1) = avg%pp(1) + p_tmp(1)**2
+-    avg%pp(2) = avg%pp(2) + p_tmp(2)**2
+-    avg%pp(3) = avg%pp(3) + p_tmp(3)**2
+-    avg%pp(4) = avg%pp(4) + p_tmp(2)*p_tmp(3)
+-    avg%pp(5) = avg%pp(5) + p_tmp(3)*p_tmp(1)
+-    avg%pp(6) = avg%pp(6) + p_tmp(1)*p_tmp(2)
+-
+-    if (p%distribution_directory.ne.'never') then
+-       tmp_distribution(:,:)=0
+-!$omp parallel do private(iz, iy, ix, alpha) reduction(+:tmp_distribution)
+-       do iz = 0, p%Lz-1
+-          do iy = 0, p%Ly-1
+-             do ix = 0, p%Lx-1
+-                if (c%sum_p(ix,iy,iz)) then
+-                   do alpha = 1, 3
+-                      k = nint(c%dipoR(alpha,ix,iy,iz)*step_inv)
+-                      if (abs(k)<=max_k) tmp_distribution(alpha,k) = tmp_distribution(alpha,k) + 1
+-                   end do
+-                end if
+-             end do
+-          end do
+-       end do
+-!$omp end parallel do
+-       avg%distribution(:,:) = avg%distribution(:,:) + tmp_distribution(:,:)
+-
+-       do iz = 0, p%Lz-1
+-          do iy = 0, p%Ly-1
+-             do ix = 0, p%Lx-1
+-                if (c%sum_p(ix,iy,iz)) then
+-                   kx = nint(c%dipoR(1,ix,iy,iz)*step_inv); if (abs(kx)>max_k) cycle
+-                   ky = nint(c%dipoR(2,ix,iy,iz)*step_inv); if (abs(ky)>max_k) cycle
+-                   kz = nint(c%dipoR(3,ix,iy,iz)*step_inv); if (abs(kz)>max_k) cycle
+-                   avg%distribution3d(kx,ky,kz) = avg%distribution3d(kx,ky,kz) + 1
+-                end if
+-             end do
+-          end do
+-       end do
+-    end if
+-
+-    u_tmp(:) = u_tmp(:) / c%n_sum_p
+-    p_tmp(:) = p_tmp(:) / c%n_sum_p
+-
+-    if (p%output_polarization) write(UNIT_POLARIZATION, '(f13.10,2f14.10)') p_tmp(1:3)
+-
+-    if (detail) then
+-       write(message,'("<u>   =",3f10.6)') u_tmp(1:3)
+-       call msg_ez(UNIT_LOG,message)
+-       write(message,'("sigma =",3f10.6)') sqrt(uu_tmp(1:3)/c%n_sum_p - u_tmp(1:3)**2)
+-       call msg_ez(UNIT_LOG,message)
+-
+-       write(message,'("<p>   =",3f10.6)') p_tmp(1:3)
+-       call msg_ez(UNIT_LOG,message)
+-       write(message,'("sigma =",3f10.6)') sqrt(pp_tmp(1:3)/c%n_sum_p - p_tmp(1:3)**2)
+-       call msg_ez(UNIT_LOG,message)
+-    end if
+-  end subroutine add_to_Average
+-
+-  subroutine divide_and_write_Average(p,c,avg)
+-    use Param_module
+-    use Coord_module
+-    use msg_module
+-    implicit none
+-    type(Param_type),   intent(inout) :: p   ! may alter p%kelvin
+-    type(Coord_type),   intent(in)    :: c
+-    type(Average_type), intent(inout) :: avg
+-    character (len=FILE_NAME_LEN)     :: fn_avg, fn_tmp, fn_T_layer
+-    integer                           :: i,k,kx,ky,kz
+-
+-    call msg(UNIT_LOG, __FILE__, __LINE__, 'BEGIN', 'divide_and_write_Average().')
+-
+-    if (p%n_average.eq.0) then
+-       call msg(UNIT_LOG, __FILE__, __LINE__, 'END', 'divide_and_write_Average() immediately, because n_average=0.')
+-       return
+-    end if
+-
+-    avg%energy = div_Energy(avg%energy, p%n_average)
+-    avg%energy = div_Energy(avg%energy, p%N)
+-    avg%e2                = avg%e2                / p%n_average * p%Ninv
+-!   avg%acou_kinetic_true = avg%acou_kinetic_true / p%n_average * p%Ninv
+-    avg%dipo_kinetic_true = avg%dipo_kinetic_true / p%n_average * p%Ninv
+-
+-    avg%strain(:) = avg%strain(:) / p%n_average
+-
+-    if (p%bulk_or_film.eq.'film' .or. p%bulk_or_film.eq.'epit') then
+-       avg%u(:)  = avg%u(:)  / p%n_average / c%n_sum_p
+-       avg%uu(:) = avg%uu(:) / p%n_average / c%n_sum_p
+-       avg%p(:)  = avg%p(:)  / p%n_average / c%n_sum_p
+-       avg%pp(:) = avg%pp(:) / p%n_average / c%n_sum_p
+-    else
+-       avg%u(:)  = avg%u(:)  / p%n_average * p%Ninv
+-       avg%uu(:) = avg%uu(:) / p%n_average * p%Ninv
+-       avg%p(:)  = avg%p(:)  / p%n_average * p%Ninv
+-       avg%pp(:) = avg%pp(:) / p%n_average * p%Ninv
+-    end if
+-
+-    if (p%method.eq.'lf') then
+-       if (p%mass_acou(1) > 0.0d0) then
+-          p%kelvin = ( avg%dipo_kinetic_true + &   ! average two kinetic energies
+-               &       avg%energy%acou_kinetic ) / 3 * KELVIN_EV
+-       else
+-          p%kelvin =   avg%dipo_kinetic_true * 2 / 3 * KELVIN_EV
+-       end if
+-       if (p%delta_e.ne.0.0d0) then
+-          avg%e_layer_dipo(0:p%Lz) = avg%e_layer_dipo(0:p%Lz) / p%n_average
+-          avg%e_layer_acou(0:p%Lz) = avg%e_layer_acou(0:p%Lz) / p%n_average
+-          write(fn_T_layer,'(a,a)') trim(p%filename), '.T_layer'
+-          call msg(UNIT_LOG, __FILE__, __LINE__, 'FILE', fn_T_layer)
+-          open(UNIT=UNIT_T_LAYER,FILE=fn_T_layer)
+-          do i=0,p%Lz-1
+-             write(UNIT_T_LAYER,'(i6,2f13.8)') i, &
+-                  & avg%e_layer_dipo(i) / p%Lx / p%Ly * 2.0d0 / 3.0d0 * KELVIN_EV, &
+-                  & avg%e_layer_acou(i) / p%Lx / p%Ly * 2.0d0 / 3.0d0 * KELVIN_EV
+-          end do
+-          close(UNIT_T_LAYER)
+-       end if
+-    end if
+-
+-    write(fn_avg,'(a,a)') trim(p%filename), '.avg'
+-    call msg(UNIT_LOG, __FILE__, __LINE__, 'FILE', fn_avg)
+-    open(unit=UNIT_AVG,file=fn_avg, status='REPLACE')
+-    write(UNIT_AVG,"(f8.3,3f9.5,1(e15.5,5e13.5),1(e15.5,2e13.5),1(e15.5,5e13.5),1(1e17.7,14e15.7),1(e15.5,2e13.5),1(e15.5,5e13.5))")&
+-         p%kelvin, p%external_E_field(1:3), avg%strain(1:6), avg%u(1:3), avg%uu(1:6),&
+-         avg%energy%dipo_kinetic    ,&
+-         avg%energy%long_range      ,&
+-         avg%energy%dipole_E_field  ,&
+-         avg%energy%unharmonic      ,&
+-         avg%energy%homo_strain     ,&
+-         avg%energy%homo_coupling   ,&
+-         avg%energy%inho_strain     ,&
+-         avg%energy%inho_coupling   ,&
+-         avg%energy%total           ,&
+-         avg%energy%H_Nose_Poincare ,&
+-         avg%e2                     ,&
+-         avg%dipo_kinetic_true      ,&
+-         avg%energy%acou_kinetic    ,&
+-         avg%energy%short_range     ,&
+-         avg%energy%inho_modulation ,&
+-         avg%p(1:3), avg%pp(1:6)
+-    close(UNIT_AVG)
+-
+-    if (p%distribution_directory.eq.'never') then
+-       call msg(UNIT_LOG, __FILE__, __LINE__, 'FILE', 'never write .distribution and .distribution3d files.')
+-    else
+-       if (p%distribution_directory.eq.'') then
+-          fn_tmp = trim(p%filename)
+-       else
+-          fn_tmp = trim(p%distribution_directory) // '/' // trim(p%filename)
+-       end if
+-
+-       write(fn_avg,'(a,a)') trim(fn_tmp), '.distribution'
+-       call msg(UNIT_LOG, __FILE__, __LINE__, 'FILE', fn_avg)
+-       open(unit=UNIT_AVG,file=fn_avg, status='REPLACE')
+-       do k = -max_k, max_k
+-          write(UNIT_AVG,'(f7.4,3f12.7)') step*k, dble(avg%distribution(:,k)) * step_inv / c%n_sum_p / p%n_average
+-       end do
+-       close(UNIT_AVG)
+-
+-       write(fn_avg,'(a,a)') trim(fn_tmp), '.distribution3d'
+-       call msg(UNIT_LOG, __FILE__, __LINE__, 'FILE', fn_avg)
+-       open(unit=UNIT_AVG,file=fn_avg, status='REPLACE')
+-       do kz = -max_k, max_k
+-          do ky = -max_k, max_k
+-             do kx = -max_k, max_k
+-                write(UNIT_AVG,'(i3,2i4,e11.5e1)') kx,ky,kz, dble(avg%distribution3d(kx,ky,kz)) * step_inv**3 / c%n_sum_p / p%n_average
+-             end do
+-          end do
+-       end do
+-       close(UNIT_AVG)
+-    end if
+-
+-    call msg(UNIT_LOG, __FILE__, __LINE__, 'END', 'divide_and_write_Average().')
+-  end subroutine divide_and_write_Average
+-end module Average_module
+diff -Naur ./average_module.F.rej ../../../feram-0.26.05/Patch_Lan-Tien/src/average_module.F.rej
+--- ./average_module.F.rej	2026-10-19 12:24:11.167600942 +0200
++++ ../../../feram-0.26.05/Patch_Lan-Tien/src/average_module.F.rej	1970-01-01 01:00:00.000000000 +0100
+@@ -1,40 +0,0 @@
+---- ../../feram-0.26.05/Patch_Lan-Tien/src/average_module.F	2025-02-03 18:39:58.000000000 +0100
+-+++ average_module.F	2016-09-23 05:50:54.000000000 +0200
+-@@ -165,25 +165,15 @@
+-     if (p%output_polarization) write(UNIT_POLARIZATION, '(f13.10,2f14.10)') p_tmp(1:3)
+- 
+-     if (detail) then
+--       write(message,'("<u>    ",3f10.6)') u_tmp(1:3)
+-+       write(message,'("<u>   =",3f10.6)') u_tmp(1:3)
+-        call msg_ez(UNIT_LOG,message)
+--       write(message,'(",""u"":[",2(f10.6,","),f10.6,"]")') u_tmp(1:3)
+--       call msg_ez(UNIT_JSON, message)
+--
+--       write(message,'("sigma  ",3f10.6)') sqrt(uu_tmp(1:3)/c%n_sum_p - u_tmp(1:3)**2)
+-+       write(message,'("sigma =",3f10.6)') sqrt(uu_tmp(1:3)/c%n_sum_p - u_tmp(1:3)**2)
+-        call msg_ez(UNIT_LOG,message)
+--       write(message,'(",""u_sigma"":[",2(f10.6,","),f10.6,"]")') sqrt(uu_tmp(1:3)/c%n_sum_p - u_tmp(1:3)**2)
+--       call msg_ez(UNIT_JSON, message)
+- 
+--       write(message,'("<p>    ",3f10.6)') p_tmp(1:3)
+-+       write(message,'("<p>   =",3f10.6)') p_tmp(1:3)
+-        call msg_ez(UNIT_LOG,message)
+--       write(message,'(",""p"":[",2(f10.6,","),f10.6,"]")') p_tmp(1:3)
+--       call msg_ez(UNIT_JSON, message)
+--
+--       write(message,'("sigma  ",3f10.6)') sqrt(pp_tmp(1:3)/c%n_sum_p - p_tmp(1:3)**2)
+-+       write(message,'("sigma =",3f10.6)') sqrt(pp_tmp(1:3)/c%n_sum_p - p_tmp(1:3)**2)
+-        call msg_ez(UNIT_LOG,message)
+--       write(message,'(",""p_sigma"":[",2(f10.6,","),f10.6,"]")') sqrt(pp_tmp(1:3)/c%n_sum_p - p_tmp(1:3)**2)
+--       call msg_ez(UNIT_JSON, message)
+-     end if
+-   end subroutine add_to_Average
+- 
+-@@ -214,7 +204,6 @@
+-     avg%strain(:) = avg%strain(:) / p%n_average
+- 
+-     if (p%bulk_or_film.eq.'film' .or. p%bulk_or_film.eq.'epit') then
+--      ! LT: is it like only film should be here? or strained sample?  n_sum_p and Ninv: (1/Ntot) is what?
+-        avg%u(:)  = avg%u(:)  / p%n_average / c%n_sum_p
+-        avg%uu(:) = avg%uu(:) / p%n_average / c%n_sum_p
+-        avg%p(:)  = avg%p(:)  / p%n_average / c%n_sum_p
+diff -Naur ./define.h ../../../feram-0.26.05/Patch_Lan-Tien/src/define.h
+--- ./define.h	2016-09-23 05:50:54.000000000 +0200
++++ ../../../feram-0.26.05/Patch_Lan-Tien/src/define.h	2025-02-03 18:39:58.000000000 +0100
+@@ -6,6 +6,7 @@
+ #define UNIT_DEFECTS_U 14
+ #define UNIT_T_LAYER 16
+ #define UNIT_LOG 18
++#define UNIT_JSON 19
+ #define UNIT_WISDOM 20
+ #define UNIT_QUADRATIC 22
+ #define UNIT_RELAXOR 24
+diff -Naur ./energy_module.F ../../../feram-0.26.05/Patch_Lan-Tien/src/energy_module.F
+--- ./energy_module.F	2016-09-23 05:50:54.000000000 +0200
++++ ../../../feram-0.26.05/Patch_Lan-Tien/src/energy_module.F	2025-02-03 18:39:58.000000000 +0100
+@@ -2,6 +2,10 @@
+ ! Time-stamp: <2016-06-09 22:35:29 takeshi>
+ ! Author: Takeshi NISHIMATSU
+ !!
++#if defined HAVE_CONFIG_H
++#  include "config.h"
++#endif
++# include "define.h"
+ module Energy_module
+   implicit none
+   type Energy_type
+@@ -98,28 +102,88 @@
+     integer fd
+     !--- local -----------------------------------------
+     character(30), parameter :: fmt = "(a15,f18.12,' [eV/u.c.]')"
++    character(30), parameter :: json_fmt = "(',""',a,'"":',f18.12)"
+     character(45) message
+     !--- END of variable definitions -------------------
+ 
+-    write(message,fmt) 'acou_kinetic   ', e%acou_kinetic*p%Ninv;    call msg_ez(fd,message)
++    write(message,fmt) 'acou_kinetic   ', e%acou_kinetic*p%Ninv
++    call msg_ez(fd,message)
++    write(message, json_fmt) 'acou_kinetic', e%acou_kinetic*p%Ninv
++    call msg_ez(UNIT_JSON, message)
++
+     write(message,fmt) 'dipo_kinetic   ', e%dipo_kinetic/c%s_Nose**2*p%Ninv
+-                                                                    call msg_ez(fd,message)
+-    write(message,fmt) 'short_range    ', e%short_range*p%Ninv;     call msg_ez(fd,message)
+-    write(message,fmt) 'long_range     ', e%long_range*p%Ninv;      call msg_ez(fd,message)
+-    write(message,fmt) 'dipole_E_field ', e%dipole_E_field*p%Ninv;  call msg_ez(fd,message)
+-    write(message,fmt) 'unharmonic     ', e%unharmonic*p%Ninv;      call msg_ez(fd,message)
+-    write(message,fmt) 'homo_strain    ', e%homo_strain*p%Ninv;     call msg_ez(fd,message)
+-    write(message,fmt) 'homo_coupling  ', e%homo_coupling*p%Ninv;   call msg_ez(fd,message)
+-    write(message,fmt) 'inho_strain    ', e%inho_strain*p%Ninv;     call msg_ez(fd,message)
+-    write(message,fmt) 'inho_coupling  ', e%inho_coupling*p%Ninv;   call msg_ez(fd,message)
+-    write(message,fmt) 'inho_modulation', e%inho_modulation*p%Ninv; call msg_ez(fd,message)
++    call msg_ez(fd,message)
++    write(message, json_fmt) 'dipo_kinetic', e%dipo_kinetic/c%s_Nose**2*p%Ninv
++    call msg_ez(UNIT_JSON, message)
++
++    write(message,fmt) 'short_range    ', e%short_range*p%Ninv
++    call msg_ez(fd,message)
++    write(message, json_fmt) 'short_range', e%short_range*p%Ninv
++    call msg_ez(UNIT_JSON, message)
++
++    write(message,fmt) 'long_range     ', e%long_range*p%Ninv
++    call msg_ez(fd,message)
++    write(message, json_fmt) 'long_range', e%long_range*p%Ninv
++    call msg_ez(UNIT_JSON, message)
++
++    write(message,fmt) 'dipole_E_field ', e%dipole_E_field*p%Ninv
++    call msg_ez(fd,message)
++    write(message, json_fmt) 'dipole_E_field', e%dipole_E_field*p%Ninv
++    call msg_ez(UNIT_JSON, message)
++
++    write(message,fmt) 'unharmonic     ', e%unharmonic*p%Ninv
++    call msg_ez(fd,message)
++    write(message, json_fmt) 'unharmonic', e%unharmonic*p%Ninv
++    call msg_ez(UNIT_JSON, message)
++
++    write(message,fmt) 'homo_strain    ', e%homo_strain*p%Ninv
++    call msg_ez(fd,message)
++    write(message, json_fmt) 'homo_strain', e%homo_strain*p%Ninv
++    call msg_ez(UNIT_JSON, message)
++
++    write(message,fmt) 'homo_coupling  ', e%homo_coupling*p%Ninv
++    call msg_ez(fd,message)
++    write(message, json_fmt) 'homo_coupling', e%homo_coupling*p%Ninv
++    call msg_ez(UNIT_JSON, message)
++
++    write(message,fmt) 'inho_strain    ', e%inho_strain*p%Ninv
++    call msg_ez(fd,message)
++    write(message, json_fmt) 'inho_strain', e%inho_strain*p%Ninv
++    call msg_ez(UNIT_JSON, message)
++
++    write(message,fmt) 'inho_coupling  ', e%inho_coupling*p%Ninv
++    call msg_ez(fd,message)
++    write(message, json_fmt) 'inho_coupling', e%inho_coupling*p%Ninv
++    call msg_ez(UNIT_JSON, message)
++
++    write(message,fmt) 'inho_modulation', e%inho_modulation*p%Ninv
++    call msg_ez(fd,message)
++    write(message, json_fmt) 'inho_modulation', e%inho_modulation*p%Ninv
++    call msg_ez(UNIT_JSON, message)
++
+     call msg_ez(fd,'--------------------------------------------')
+-    write(message,fmt) 'total_energy   ', e%total*p%Ninv;           call msg_ez(fd,message)
++
++    write(message,fmt) 'total_energy   ', e%total*p%Ninv
++    call msg_ez(fd,message)
++    write(message, json_fmt) 'total_energy', e%total*p%Ninv
++    call msg_ez(UNIT_JSON, message)
+ 
+     if (p%method.eq.'md') then
+-       write(message,fmt) 'H_Nose_Poincare', e%H_Nose_Poincare*p%Ninv; call msg_ez(fd,message)
+-       write(message,'(a7,f14.8,a9,f14.8)') 's_Nose=', c%s_Nose, ' pi_Nose=', c%pi_Nose
++       write(message,fmt) 'H_Nose_Poincare', e%H_Nose_Poincare*p%Ninv
++       call msg_ez(fd,message)
++       write(message, json_fmt) 'H_Nose_Poincare', e%H_Nose_Poincare*p%Ninv
++       call msg_ez(UNIT_JSON, message)
++
++       !character(30), parameter :: json_fmt = "(',""',a15,'"":',f18.12)"
++       write(message,'(a7,f14.8)') 's_Nose ', c%s_Nose
++       call msg_ez(fd,message)
++       write(message, "(',""',a,'"":',f14.8)") 's_Nose', c%s_Nose
++       call msg_ez(UNIT_JSON, message)
++
++       write(message,'(a7,f14.8)') 'pi_Nose', c%pi_Nose
+        call msg_ez(fd,message)
++       write(message, "(',""',a,'"":',f14.8)") 'pi_Nose', c%pi_Nose
++       call msg_ez(UNIT_JSON, message)
+     end if
+ 
+     flush(fd)
+diff -Naur ./feram_common.F ../../../feram-0.26.05/Patch_Lan-Tien/src/feram_common.F
+--- ./feram_common.F	2016-09-23 05:50:54.000000000 +0200
++++ ../../../feram-0.26.05/Patch_Lan-Tien/src/feram_common.F	2025-02-03 18:39:58.000000000 +0100
+@@ -15,7 +15,7 @@
+   type(Param_type),save :: p
+   type(Coord_type),save :: c
+   character(len=FILE_NAME_LEN), intent(in) :: fn
+-  character(len=FILE_NAME_LEN)             :: fn_log, basename
++  character(len=FILE_NAME_LEN)             :: fn_log, basename, fn_json
+   integer                                  :: fn_len_trim, suffix
+   integer                                  :: OMP_GET_MAX_THREADS
+   character(len=70) :: message
+@@ -41,6 +41,7 @@
+   end if
+ 
+   fn_log = trim(p%filename) // '.log'
++  fn_json = trim(p%filename) // '.json'
+   open(unit=UNIT_LOG,file=fn_log,status='replace')
+   call msg(UNIT_LOG, __FILE__, __LINE__, 'START', PACKAGE_STRING)
+   call hostnm(message)
+@@ -53,6 +54,9 @@
+   write(message,'(i5)') OMP_GET_MAX_THREADS()
+   call msg(UNIT_LOG, __FILE__, __LINE__, 'N_THREADS', message)
+ 
++  open(unit=UNIT_JSON,file=fn_json,status='replace')
++  call msg_ez(UNIT_JSON, '[')
++
+ #if defined(HAVE_LIBFFTW3) && !defined(WITH_FFT_MKL)
+   ireturn = fftw_import_wisdom_from_filename(C_CHAR_"wisdom"//C_NULL_CHAR)
+   if (ireturn.eq.1) then
+diff -Naur ./feram.F ../../../feram-0.26.05/Patch_Lan-Tien/src/feram.F
+--- ./feram.F	2015-07-31 13:38:09.000000000 +0200
++++ ../../../feram-0.26.05/Patch_Lan-Tien/src/feram.F	2025-02-03 18:39:58.000000000 +0100
+@@ -16,9 +16,19 @@
+   implicit none
+   integer i, argn, command_argument_count
+   character(len=FILE_NAME_LEN) :: fn
++  character(2) :: version_flag
++  character(30) :: version
++
++  version_flag = "-v"
++  version = "0.26.04+better_log+json_log"
++
+   argn = command_argument_count()
+   do i=1,argn
+      call get_command_argument(i,fn)
++     if (fn == version_flag) then
++        print *, version
++        exit
++     end if
+      call feram_common(fn)
+   end do
+ end program feram
+diff -Naur ./Makefile.in ../../../feram-0.26.05/Patch_Lan-Tien/src/Makefile.in
+--- ./Makefile.in	2017-04-29 06:28:54.000000000 +0200
++++ ../../../feram-0.26.05/Patch_Lan-Tien/src/Makefile.in	2025-02-03 18:40:26.000000000 +0100
+@@ -1,7 +1,7 @@
+-# Makefile.in generated by automake 1.15 from Makefile.am.
++# Makefile.in generated by automake 1.16.5 from Makefile.am.
+ # @configure_input@
+ 
+-# Copyright (C) 1994-2014 Free Software Foundation, Inc.
++# Copyright (C) 1994-2021 Free Software Foundation, Inc.
+ 
+ # This Makefile.in is free software; the Free Software Foundation
+ # gives unlimited permission to copy and/or distribute it,
+@@ -336,8 +336,6 @@
+   unique=`for i in $$list; do \
+     if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
+   done | $(am__uniquify_input)`
+-ETAGS = etags
+-CTAGS = ctags
+ am__tty_colors_dummy = \
+   mgn= red= grn= lgn= blu= brg= std=; \
+   am__color_tests=no
+@@ -493,6 +491,7 @@
+   bases='$(TEST_LOGS)'; \
+   bases=`for i in $$bases; do echo $$i; done | sed 's/\.log$$//'`; \
+   bases=`echo $$bases`
++AM_TESTSUITE_SUMMARY_HEADER = ' for $(PACKAGE_STRING)'
+ RECHECK_LOGS = $(TEST_LOGS)
+ AM_RECURSIVE_TARGETS = check recheck
+ TEST_SUITE_LOG = test-suite.log
+@@ -525,11 +524,14 @@
+ AUTOMAKE = @AUTOMAKE@
+ AWK = @AWK@
+ CPPFLAGS = @CPPFLAGS@
++CSCOPE = @CSCOPE@
++CTAGS = @CTAGS@
+ CYGPATH_W = @CYGPATH_W@
+ DEFS = @DEFS@
+ ECHO_C = @ECHO_C@
+ ECHO_N = @ECHO_N@
+ ECHO_T = @ECHO_T@
++ETAGS = @ETAGS@
+ EXEEXT = @EXEEXT@
+ 
+ # -*-Makefile-*- for feram
+@@ -790,8 +792,8 @@
+ 	  *config.status*) \
+ 	    cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh;; \
+ 	  *) \
+-	    echo ' cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@ $(am__depfiles_maybe)'; \
+-	    cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@ $(am__depfiles_maybe);; \
++	    echo ' cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@ $(am__maybe_remake_depfiles)'; \
++	    cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@ $(am__maybe_remake_depfiles);; \
+ 	esac;
+ 
+ $(top_builddir)/config.status: $(top_srcdir)/configure $(CONFIG_STATUS_DEPENDENCIES)
+@@ -1134,7 +1136,7 @@
+ 	  test x"$$VERBOSE" = x || cat $(TEST_SUITE_LOG);		\
+ 	fi;								\
+ 	echo "$${col}$$br$${std}"; 					\
+-	echo "$${col}Testsuite summary for $(PACKAGE_STRING)$${std}";	\
++	echo "$${col}Testsuite summary"$(AM_TESTSUITE_SUMMARY_HEADER)"$${std}";	\
+ 	echo "$${col}$$br$${std}"; 					\
+ 	create_testsuite_report --maybe-color;				\
+ 	echo "$$col$$br$$std";						\
+@@ -1147,7 +1149,7 @@
+ 	fi;								\
+ 	$$success || exit 1
+ 
+-check-TESTS:
++check-TESTS: $(check_PROGRAMS)
+ 	@list='$(RECHECK_LOGS)';           test -z "$$list" || rm -f $$list
+ 	@list='$(RECHECK_LOGS:.log=.trs)'; test -z "$$list" || rm -f $$list
+ 	@test -z "$(TEST_SUITE_LOG)" || rm -f $(TEST_SUITE_LOG)
+@@ -1406,8 +1408,10 @@
+ @am__EXEEXT_TRUE@	--log-file $$b.log --trs-file $$b.trs \
+ @am__EXEEXT_TRUE@	$(am__common_driver_flags) $(AM_TEST_LOG_DRIVER_FLAGS) $(TEST_LOG_DRIVER_FLAGS) -- $(TEST_LOG_COMPILE) \
+ @am__EXEEXT_TRUE@	"$$tst" $(AM_TESTS_FD_REDIRECT)
++distdir: $(BUILT_SOURCES)
++	$(MAKE) $(AM_MAKEFLAGS) distdir-am
+ 
+-distdir: $(DISTFILES)
++distdir-am: $(DISTFILES)
+ 	@srcdirstrip=`echo "$(srcdir)" | sed 's/[].[^$$\\*]/\\\\&/g'`; \
+ 	topsrcdirstrip=`echo "$(top_srcdir)" | sed 's/[].[^$$\\*]/\\\\&/g'`; \
+ 	list='$(DISTFILES)'; \
+diff -Naur ./molecular-dynamics.F ../../../feram-0.26.05/Patch_Lan-Tien/src/molecular-dynamics.F
+--- ./molecular-dynamics.F	2017-04-24 14:10:19.000000000 +0200
++++ ../../../feram-0.26.05/Patch_Lan-Tien/src/molecular-dynamics.F	2025-02-03 18:39:58.000000000 +0100
+@@ -23,9 +23,12 @@
+   type(Average_type) :: avg
+   integer i_step, ix, iy, iz, alpha
+   real*8 E_field_add(3), u(3)
+-  character(120), parameter :: fmt_time_step = &
++  character(120), parameter :: fmt_time_step_start = &
+        "('TIME_STEP ',i8,3f16.12,' ------------------------------------------------')"
++  character(120), parameter :: fmt_time_step_end = &
++       "('TIME_STEP_END ',i8,' ------------------------------------------------')"
+   character (len=120) :: message
++  character (len=120) :: message_end
+   character (len=120) :: fn
+   logical             :: detail
+   !--- END of variable definitions -------------------
+@@ -38,8 +41,10 @@
+   if (.not. p%continue) call initialize_dipoR(p,c,e)
+ 
+   E_field_add = wave(p%E_wave_type, 0, p%n_thermalize, p%n_E_wave_period, p%external_E_field) !Redundant. The same is in initialize_E_field.F.
+-  write(message,fmt_time_step) 0, E_field_add
++  write(message,fmt_time_step_start) 0, E_field_add
+   call msg_ez(UNIT_LOG,message)
++  write(message, '("{""time_step"":",i8)') 0
++  call msg_ez(UNIT_JSON, message)
+ 
+   e%total = e%dipo_kinetic/c%s_Nose**2 + e%acou_kinetic + sum_potential_energies(e)
+   call write_Energy(p,c,e,UNIT_LOG)
+@@ -54,6 +59,10 @@
+   c%H0 = e%H_Nose_Poincare/c%s_Nose
+   call Nose_Poincare_Hamiltonian(p,c,e)
+ 
++  write(message_end,fmt_time_step_end) i_step
++  call msg_ez(UNIT_LOG,message_end)
++  call msg_ez(UNIT_JSON, '}')
++
+   call reset_Average(avg)
+ !$omp parallel do
+   do iz = 0,p%Lz-1
+@@ -107,7 +116,10 @@
+      detail = p%verbose>=2 .or. mod(i_step,p%n_coord_freq).eq.0 &
+           &   .or. i_step.eq.p%n_thermalize+p%n_average
+      if (detail) then
+-        write(message,fmt_time_step) i_step, E_field_add; call msg_ez(UNIT_LOG,message)
++        write(message,fmt_time_step_start) i_step, E_field_add
++        call msg_ez(UNIT_LOG,message)
++        write(message, '(",{""time_step"":",i8)') i_step
++        call msg_ez(UNIT_JSON, message)
+      end if
+ 
+      select case (p%method)
+@@ -138,9 +150,20 @@
+         call write_Energy(p,c,e,UNIT_LOG)
+      end if
+ 
+-     if (i_step <= p%n_thermalize) cycle
++     if (i_step <= p%n_thermalize) then
++        write(message_end,fmt_time_step_end) i_step
++        call msg_ez(UNIT_LOG,message_end)
++        call msg_ez(UNIT_JSON, '}')
++
++        cycle
++     end if
+ 
+      call add_to_Average(p,c,e,avg,detail)
++
++     write(message_end,fmt_time_step_end) i_step
++     call msg_ez(UNIT_LOG,message_end)
++     call msg_ez(UNIT_JSON, '}')
++
+ !$omp parallel do
+      do iz = 0,p%Lz-1
+         c%dipoRavg(:,:,:,iz) = c%dipoRavg(:,:,:,iz) + c%dipoR(:,:,:,iz)
+@@ -153,6 +176,7 @@
+ 
+   write(message,'(a,f6.1,a)') 'T = ', p%kelvin, ' [K] END ============================================================================'
+   call msg_ez(UNIT_LOG, message)
++  call msg_ez(UNIT_JSON, ']')
+ 
+   if (p%n_E_wave_period>0) close(UNIT_HL)
+   if (p%output_polarization) close(UNIT_POLARIZATION)
+diff -Naur ./optimize-homo-strain.F ../../../feram-0.26.05/Patch_Lan-Tien/src/optimize-homo-strain.F
+--- ./optimize-homo-strain.F	2016-09-23 05:50:54.000000000 +0200
++++ ../../../feram-0.26.05/Patch_Lan-Tien/src/optimize-homo-strain.F	2026-04-23 14:36:52.000000000 +0200
+@@ -3,7 +3,7 @@
+ ! Author: Takeshi NISHIMATSU
+ ! Caution: Before calling this subroutine, didiR should be prepared by dipoFFT.F
+ ! ref_1: R. D. King-Smith and David Vanderbilt: PRB Vol.49 p.5828 (1994)
+-!!
++!
+ #include "define.h"
+ subroutine optimize_homo_strain(p,c,e)
+   use Param_module
+@@ -17,6 +17,7 @@
+   type(Energy_type), intent(out)   :: e
+   !--- local -----------------------------------------
+   real*8 homogeneous_coupling_2_uu(6)
++  real*8 denominator, numerator, delta
+   real*8 tmp
+   integer i,j
+   !--- END of variable definitions -------------------
+@@ -31,15 +32,124 @@
+ 
+   !--- optimize homogeneous strain ------------------------------
+   if (p%bulk_or_film.eq.'epit') then
+-     c%strain(1) = p%epi_strain
+-     c%strain(2) = p%epi_strain
+-     c%strain(3) = ( -(c%homogeneous(3,1)+c%homogeneous(3,2))*p%epi_strain &
++     c%strain(1) = p%epi_strain1
++     c%strain(2) = p%epi_strain1
++     c%strain(3) = ( -(c%homogeneous(3,1)+c%homogeneous(3,2))*p%epi_strain1 &
+           &          - homogeneous_coupling_2_uu(3) ) / c%homogeneous(3,3)
+      c%strain(4) =   - homogeneous_coupling_2_uu(4)   / c%homogeneous(4,4)
+      c%strain(5) =   - homogeneous_coupling_2_uu(5)   / c%homogeneous(5,5)
+      c%strain(6) = 0.0d0
++  else if (p%bulk_or_film.eq.'strn') then
++     c%strain(1) = p%epi_strain1
++     c%strain(2) = p%epi_strain2
++     c%strain(3) = ( -(c%homogeneous(3,1)*p%epi_strain1+c%homogeneous(3,2)*p%epi_strain2) &
++          &          - homogeneous_coupling_2_uu(3) ) / c%homogeneous(3,3)
++     c%strain(4) =   - homogeneous_coupling_2_uu(4)   / c%homogeneous(4,4)
++     c%strain(5) =   - homogeneous_coupling_2_uu(5)   / c%homogeneous(5,5)
++     c%strain(6) = p%epi_strain3
++     ! write (*,*) 'bulkorfilm:', 'strn'
++  else if (p%bulk_or_film.eq.'strn_T') then
++     c%strain(1) = p%epi_strain1
++     c%strain(2) = p%epi_strain2
++     c%strain(3) = ( -(c%homogeneous(3,1)*p%epi_strain1+c%homogeneous(3,2)*p%epi_strain2) &
++          &          - homogeneous_coupling_2_uu(3) ) / c%homogeneous(3,3)
++     c%strain(4) =   - homogeneous_coupling_2_uu(4)   / c%homogeneous(4,4)
++     c%strain(5) =   - homogeneous_coupling_2_uu(5)   / c%homogeneous(5,5)
++     c%strain(6) = 0.0d0
++     ! write (*,*) 'bulkorfilm:', 'strn_T'
++  else if (p%bulk_or_film.eq.'strn_O_LT') then
++     c%strain(1) = ( - c%homogeneous(1,2)*p%epi_strain1   + c%homogeneous(4,4)*p%epi_strain2) /  (c%homogeneous(1,1)  + c%homogeneous(1,2) + c%homogeneous(4,4) )
++     c%strain(2) = ( - c%homogeneous(1,2)*p%epi_strain1   + c%homogeneous(4,4)*p%epi_strain2) /  (c%homogeneous(1,1)  + c%homogeneous(1,2) + c%homogeneous(4,4) )
++     c%strain(3) = p%epi_strain1
++     c%strain(4) =   - homogeneous_coupling_2_uu(4)   / c%homogeneous(4,4)
++     c%strain(5) =   - homogeneous_coupling_2_uu(5)   / c%homogeneous(5,5)
++     c%strain(6) = ( - c%homogeneous(1,2)*(p%epi_strain1 + p%epi_strain2) - c%homogeneous(1,1)*p%epi_strain2) /  (c%homogeneous(1,1)  + c%homogeneous(1,2) + c%homogeneous(4,4) )
++  else if (p%bulk_or_film.eq.'strn_O_fx') then
++     c%strain(1) = ( - c%homogeneous(1,2)*p%epi_strain1   + c%homogeneous(4,4)*p%epi_strain2) /  (c%homogeneous(1,1)  + c%homogeneous(1,2) + c%homogeneous(4,4) )
++     c%strain(2) = ( - c%homogeneous(1,2)*p%epi_strain1   + c%homogeneous(4,4)*p%epi_strain2) /  (c%homogeneous(1,1)  + c%homogeneous(1,2) + c%homogeneous(4,4) )
++     c%strain(3) = p%epi_strain1
++     c%strain(4) =   0.0d0
++     c%strain(5) =   0.0d0
++     c%strain(6) = ( - c%homogeneous(1,2)*(p%epi_strain1 + p%epi_strain2) - c%homogeneous(1,1)*p%epi_strain2) /  (c%homogeneous(1,1)  + c%homogeneous(1,2) + c%homogeneous(4,4) )
++  else if (p%bulk_or_film.eq.'strn_O_rd') then
++     c%strain(1) = (( - c%homogeneous(1,2)*p%epi_strain1 + c%homogeneous(4,4)*p%epi_strain2) /  (c%homogeneous(1,1) + c%homogeneous(1,2) + c%homogeneous(4,4) )) - homogeneous_coupling_2_uu(1) / c%homogeneous(1,1)
++     c%strain(2) = (( - c%homogeneous(1,2)*p%epi_strain1 + c%homogeneous(4,4)*p%epi_strain2) /  (c%homogeneous(1,1) + c%homogeneous(1,2) + c%homogeneous(4,4) )) - homogeneous_coupling_2_uu(2) / c%homogeneous(2,2)
++     c%strain(3) = p%epi_strain1
++     c%strain(4) =   - homogeneous_coupling_2_uu(4)   / c%homogeneous(4,4)
++     c%strain(5) =   - homogeneous_coupling_2_uu(5)   / c%homogeneous(5,5)
++     c%strain(6) = (( - c%homogeneous(1,2)*(p%epi_strain1 + p%epi_strain2) - c%homogeneous(1,1)*p%epi_strain2) /  (c%homogeneous(1,1)  + c%homogeneous(1,2) + c%homogeneous(4,4) )) - homogeneous_coupling_2_uu(6) / c%homogeneous(6,6)
++  else if (p%bulk_or_film.eq.'e110') then
++     c%strain(3) = p%epi_strain1   ! We assume that f=eta_3.
++     c%strain(4) = 0.0d0
++     c%strain(5) = 0.0d0
++    !LT 2024.05.07 corrected: 2*c%homogeneous(2,2) -> 2*c%homogeneous(1,2) in numerator
++     numerator = &
++          -(c%homogeneous(1,1)+c%homogeneous(2,2)+2*c%homogeneous(1,2))*p%epi_strain1 &
++          -(c%homogeneous(3,1)+c%homogeneous(3,2)                     )*c%strain(3) &
++          -   homogeneous_coupling_2_uu(1) &
++          -   homogeneous_coupling_2_uu(2) &
++          + 2*homogeneous_coupling_2_uu(6)
++     denominator = c%homogeneous(1,1)+c%homogeneous(2,2)+2*c%homogeneous(2,1)+4*c%homogeneous(6,6)
++     delta = numerator/denominator
++     c%strain(1) = p%epi_strain1 + delta
++     c%strain(2) = p%epi_strain1 + delta
++     c%strain(6) =             -2*delta
++  else if (p%bulk_or_film.eq.'e110_LT') then
++     c%strain(3) = p%epi_strain2   ! f = epi_strain1, g = epi_strain2
++     c%strain(4) = 0.0d0
++     c%strain(5) = 0.0d0
++     numerator = &
++          - 2*(c%homogeneous(1,1) + c%homogeneous(1,2) - 2*c%homogeneous(4,4))*p%epi_strain1 &
++          - 2*(c%homogeneous(1,2))*c%strain(3) &
++          -   homogeneous_coupling_2_uu(1) &
++          -   homogeneous_coupling_2_uu(2) &
++          - 2*homogeneous_coupling_2_uu(6)
++     denominator = 2*c%homogeneous(1,1) + 2*c%homogeneous(1,2) + 4*c%homogeneous(4,4)
++     delta = numerator/denominator
++     c%strain(1) = p%epi_strain1 + delta
++     c%strain(2) = p%epi_strain1 + delta
++     c%strain(6) = 2*(delta - p%epi_strain1)
++     ! write(*,*) 'e110_LT is used', 'OK'
++   else if (p%bulk_or_film.eq.'e110_LT_20241203') then
++     c%strain(3) = p%epi_strain1   ! g = epi_strain1, f = epi_strain2 / 2
++     c%strain(4) = 0.0d0
++     c%strain(5) = 0.0d0
++     numerator = &
++          - 1*(c%homogeneous(1,1) + c%homogeneous(1,2) - 2*c%homogeneous(4,4))*p%epi_strain2 &
++          - 2*(c%homogeneous(1,2))*c%strain(3) &
++          -   homogeneous_coupling_2_uu(1) &
++          -   homogeneous_coupling_2_uu(2) &
++          - 2*homogeneous_coupling_2_uu(6)
++     denominator = 2*c%homogeneous(1,1) + 2*c%homogeneous(1,2) + 4*c%homogeneous(4,4)
++     delta = numerator/denominator
++     c%strain(1) = delta + p%epi_strain2 / 2
++     c%strain(2) = delta + p%epi_strain2 / 2
++     c%strain(6) = 2*delta - p%epi_strain2
++   else if (p%bulk_or_film.eq.'e110_LT_20241203_ref') then
++     c%strain(3) = p%epi_strain1   ! g = epi_strain1,    f = (1-sqrt(2)+epi_strain2) / (2*sqrt(2))
++     c%strain(4) = 0.0d0
++     c%strain(5) = 0.0d0
++     numerator = &
++          - 1*(c%homogeneous(1,1) + c%homogeneous(1,2) - 2*c%homogeneous(4,4)) * (1-sqrt(2.0)+p%epi_strain2) / sqrt(2.0) &
++          - 2*(c%homogeneous(1,2))*c%strain(3) &
++          -   homogeneous_coupling_2_uu(1) &
++          -   homogeneous_coupling_2_uu(2) &
++          - 2*homogeneous_coupling_2_uu(6)
++     denominator = 2*c%homogeneous(1,1) + 2*c%homogeneous(1,2) + 4*c%homogeneous(4,4)
++     delta = numerator/denominator
++     c%strain(1) = delta + (1-sqrt(2.0)+p%epi_strain2) / (2*sqrt(2.0))
++     c%strain(2) = delta + (1-sqrt(2.0)+p%epi_strain2) / (2*sqrt(2.0))
++     c%strain(6) = 2*delta - 2*(1-sqrt(2.0)+p%epi_strain2) / (2*sqrt(2.0))
++   else if (p%bulk_or_film.eq.'strn_R') then
++     c%strain(1) = p%epi_strain1*2 + p%epi_strain2*3 
++     c%strain(2) = p%epi_strain1*2 + p%epi_strain2*3
++     c%strain(3) = p%epi_strain1*2
++     c%strain(4) = p%epi_strain1*2
++     c%strain(5) = p%epi_strain1*2  
++     c%strain(6) = p%epi_strain1*2 - p%epi_strain2*3
+   else
+      c%strain(:) = -homogeneous_coupling_2_uu(:) !!!minus!!!
++     ! write (*,*) 'bulkorfilm:', 'else'
+      do i = 1, 6
+         tmp = 0.0d0
+         do j = 1, i-1
+@@ -68,6 +178,8 @@
+   !--- compute homogeneous coupling energy ----------------------
+   e%homo_coupling = dot_product( c%strain(:), homogeneous_coupling_2_uu(:) )
+ 
++
++  ! write (*,*) 'strains:', c%strain(1), c%strain(2), c%strain(3), c%strain(4), c%strain(5), c%strain(6), p%epi_strain1, p%epi_strain2, p%epi_strain3
+   if (p%verbose>=4) call msg(UNIT_LOG, __FILE__, __LINE__, 'END', &
+        & '  optimize_homo_strain(): e%homo_strain and e%homo_coupling are also calculated.')
+ end subroutine optimize_homo_strain
+diff -Naur ./param_module.F ../../../feram-0.26.05/Patch_Lan-Tien/src/param_module.F
+--- ./param_module.F	2016-10-19 11:26:28.000000000 +0200
++++ ../../../feram-0.26.05/Patch_Lan-Tien/src/param_module.F	2026-04-23 14:36:29.000000000 +0200
+@@ -38,13 +38,13 @@
+      real*8 mass_acou(1:RELAXOR_MAX) ! [eV Angstrom^-2 ps^2]
+      real*8 Q_Nose       ! [eV ps^2]
+      !--- System geometry -----------------------------
+-     character(len=4) :: bulk_or_film
++     character(len=100) :: bulk_or_film
+      integer Lx, Ly, Lz ! Integer
+      integer gap_id     ! 0, 1, 2
+      integer padding_y
+      real*8  gap_dipole_u(3)
+      real*8 a0          ! lattice constant [Angstrom]
+-     real*8 epi_strain
++     real*8 epi_strain1, epi_strain2, epi_strain3
+      !--- Time step -----------------------------------
+      real*8 dt          ! Time step width delta t [pico second]
+      integer n_thermalize
+@@ -142,7 +142,9 @@
+     p%padding_y = 1
+     p%gap_dipole_u(:) = 0.0d0
+     p%a0 = 4.0d0
+-    p%epi_strain = 0.0d0
++    p%epi_strain1 = 0.0d0
++    p%epi_strain2 = 0.0d0
++    p%epi_strain3 = 0.0d0
+ 
+     p%n_thermalize =  10000
+     p%n_average    = 100000
+@@ -254,9 +256,22 @@
+           read(str,*) dmy1, dmy2, p%Q_Nose
+        case('bulk_or_film')
+           read(str,*) dmy1, dmy2, p%bulk_or_film
+-          if (p%bulk_or_film.ne.'bulk' .and. p%bulk_or_film.ne.'film' .and. p%bulk_or_film.ne.'epit')  then
++          if (p%bulk_or_film.ne.'bulk' .and. &
++              p%bulk_or_film.ne.'film' .and. &
++              p%bulk_or_film.ne.'epit' .and. &
++              p%bulk_or_film.ne.'strn' .and. &
++              p%bulk_or_film.ne.'strn_T' .and. &
++              p%bulk_or_film.ne.'strn_O' .and. &
++              p%bulk_or_film.ne.'strn_R' .and. &
++              p%bulk_or_film.ne.'strn_O_rd' .and. &
++              p%bulk_or_film.ne.'strn_O_LT' .and. &
++              p%bulk_or_film.ne.'strn_O_fx' .and. &
++              p%bulk_or_film.ne.'e110_LT' .and. &
++              p%bulk_or_film.ne.'e110_LT_20241203' .and. &
++              p%bulk_or_film.ne.'e110_LT_20241203_ref' .and. &
++              p%bulk_or_film.ne.'e110')  then
+              write(0,'(a,a,i3,a,a)') trim(fn),':', line_number, ':', trim(str)
+-             stop ': Input error: bulk_or_film must be bulk, film or epit.'
++             stop ': Input error: bulk_or_film must be bulk, film, epit, strn or strn_T, strn_O.'
+           end if
+        case('L')
+           read(str,*) dmy1, dmy2, p%Lx, p%Ly, p%Lz
+@@ -269,7 +284,7 @@
+        case('a0')
+           read(str,*) dmy1, dmy2, p%a0
+        case('epi_strain')
+-          read(str,*) dmy1, dmy2, p%epi_strain
++          read(str,*) dmy1, dmy2, p%epi_strain1, p%epi_strain2, p%epi_strain3
+        case('dt')
+           read(str,*) dmy1, dmy2, p%dt
+        case('n_thermalize')
+@@ -464,13 +479,24 @@
+ 
+     p%target_kinetic_energy = p%kelvin * 1.5d0 * p%N / KELVIN_EV
+ 
+-    if (p%bulk_or_film.eq.'bulk') then
++    if (p%bulk_or_film.eq.'bulk' .or. & 
++        p%bulk_or_film.eq.'strn' .or. &
++        p%bulk_or_film.eq.'strn_T' .or. &
++        p%bulk_or_film.eq.'strn_O' .or. &
++        p%bulk_or_film.eq.'strn_R' .or. &
++        p%bulk_or_film.eq.'strn_O_rd' .or. &
++        p%bulk_or_film.eq.'strn_O_LT' .or. &
++        p%bulk_or_film.eq.'strn_O_fx' .or. &
++        p%bulk_or_film.eq.'e110_LT' .or. &
++        p%bulk_or_film.ne.'e110_LT_20241203' .or. &
++        p%bulk_or_film.ne.'e110_LT_20241203_ref' .or. &
++        p%bulk_or_film.eq.'e110')  then
+        if (p%gap_id.ne.0) then
+-          stop ': In the case of bulk calculation, gap_id must be 0.'
++          stop ': In the case of bulk, strn, strn_O, strn_T calculation, gap_id must be 0.' ! LT modified (gap_id: number of deadlayer 0/1/2)
+        end if
+     else
+        if (mod(p%Lz,2).ne.mod(p%gap_id,2)) then
+-          stop ': In the case of film or epit calculation, it must be mod(Lz,2)==mod(gap_id,2).'
++          stop ': In the case of film, epit calculation, it must be mod(Lz,2)==mod(gap_id,2).'
+        end if
+     end if
+     call msg(UNIT_LOG, __FILE__, __LINE__, 'END',   '  make_Param().')
