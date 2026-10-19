@@ -1,3 +1,5 @@
+# create virtual environment
+
 python -m venv myenv
 source myenv/bin/activate
 pip install -r requirements.txt
@@ -6,8 +8,11 @@ pip install -U polars-lts-cpu
 
 pip install --upgrade pip
 
-
-sim15: can forward agent to github
-
 virtualenv venv
 source venv/bin/activate
+
+# apply the 04.patch to the official feram
+
+cd <your_feram>/src
+patch -s -p0 < 04.patch
+update the feram executable in your AutoFeram/src/lib/control/XXX.py
